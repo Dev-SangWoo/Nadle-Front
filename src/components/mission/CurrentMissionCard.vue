@@ -3,7 +3,7 @@
     <div class="text-4xl flex-shrink-0">{{ missionEmoji }}</div>
     <div class="flex-1 min-w-0">
       <p class="text-xs text-gray-400 mb-0.5">현재 목적지</p>
-      <p class="text-base font-bold text-gray-800 truncate">{{ destination?.name ?? '—' }}</p>
+      <p class="text-base font-bold text-gray-800 truncate">{{ destination?.spotName ?? '—' }}</p>
       <p class="text-xs text-nadle-green font-semibold mt-0.5">{{ missionLabel }}</p>
     </div>
   </div>

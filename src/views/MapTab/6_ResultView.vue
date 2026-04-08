@@ -54,7 +54,7 @@
             {{ idx + 1 }}
           </span>
           <div>
-            <p class="text-sm font-semibold text-gray-800">{{ dest.name }}</p>
+            <p class="text-sm font-semibold text-gray-800">{{ dest.spotName }}</p>
             <p class="text-xs text-gray-400">{{ dest.description }}</p>
           </div>
         </div>
@@ -83,7 +83,7 @@ const summary = { distance: '4.2km', time: '38분' }
 
 function onGoHome() {
   historyStore.addRecord({
-    route: rideStore.destinations.map(d => d.name).join(' → '),
+    route: rideStore.destinations.map(d => d.spotName).join(' → '),
     stamps: [...rideStore.stamps],
     duration: summary.time,
     distance: summary.distance
