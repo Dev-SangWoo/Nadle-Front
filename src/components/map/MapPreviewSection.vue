@@ -17,7 +17,7 @@
         <span class="text-lg">📍</span>
         <div>
           <p class="text-xs text-gray-400">현재 목적지</p>
-          <p class="text-sm font-bold text-gray-800">{{ currentDestination.name }}</p>
+          <p class="text-sm font-bold text-gray-800">{{ currentDestination.spotName }}</p>
         </div>
       </div>
     </div>
@@ -43,7 +43,7 @@ function openKakaoMap() {
   const dest = props.destinations[props.currentIndex] ?? props.destinations[0]
   // TODO: 실제 좌표 연동
   const url = `kakaomap://look?p=${dest.lat ?? 37.5665},${dest.lng ?? 126.9780}`
-  const webUrl = `https://map.kakao.com/link/to/${dest.name},${dest.lat ?? 37.5665},${dest.lng ?? 126.9780}`
+  const webUrl = `https://map.kakao.com/link/to/${dest.spotName},${dest.lat ?? 37.5665},${dest.lng ?? 126.9780}`
   try {
     window.location.href = url
     setTimeout(() => { window.open(webUrl, '_blank') }, 1500)

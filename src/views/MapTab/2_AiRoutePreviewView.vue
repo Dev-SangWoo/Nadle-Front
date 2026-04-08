@@ -13,24 +13,33 @@
 
       <!-- 추천 관광지 리스트 -->
       <div class="flex flex-col gap-2 flex-shrink-0">
-        <div
+        <button
           v-for="(dest, idx) in rideStore.destinations"
           :key="idx"
-          class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl"
+          class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl w-full text-left active:bg-gray-100 transition-colors"
+          @click="openDetail(dest)"
         >
           <span class="w-6 h-6 rounded-full bg-nadle-green text-white text-xs flex items-center justify-center font-bold flex-shrink-0">
             {{ idx + 1 }}
           </span>
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-gray-800 truncate">{{ dest.name }}</p>
+            <p class="text-sm font-semibold text-gray-800 truncate">{{ dest.spotName }}</p>
             <p class="text-xs text-gray-400 truncate">{{ dest.description }}</p>
           </div>
-        </div>
+          <span class="text-gray-300 text-sm flex-shrink-0">›</span>
+        </button>
 
         <div v-if="rideStore.destinations.length === 0" class="text-center py-4 text-gray-400 text-sm">
           AI가 코스를 생성 중이에요... 🤖
         </div>
       </div>
+
+      <!-- 관광지 상세 시트 -->
+      <SpotDetailSheet
+        v-if="selectedSpot"
+        :spot="selectedSpot"
+        @close="selectedSpot = null"
+      />
 
       <!-- 챗봇 재조정 -->
       <div class="flex-shrink-0">
@@ -47,14 +56,22 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRideStore } from '@/stores/useRideStore'
 import MapPreviewSection from '@/components/map/MapPreviewSection.vue'
 import AiChatPrompt from '@/components/ai/AiChatPrompt.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import SpotDetailSheet from '@/components/map/SpotDetailSheet.vue'
 
 const router = useRouter()
 const rideStore = useRideStore()
+
+const selectedSpot = ref(null)
+
+function openDetail(dest) {
+  selectedSpot.value = dest
+}
 
 function onAdjust(text) {
   rideStore.setPrompt(text)
