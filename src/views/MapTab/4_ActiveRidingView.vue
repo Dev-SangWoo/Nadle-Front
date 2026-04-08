@@ -68,7 +68,7 @@ function onArrived() {
 
 function onMissionComplete() {
   showMission.value = false
-  rideStore.collectStamp(currentDestination.value?.name)
+  rideStore.collectStamp(currentDestination.value?.spotName)
 
   const isLast = rideStore.currentDestIndex >= rideStore.destinations.length
   if (isLast) {
