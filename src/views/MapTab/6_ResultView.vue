@@ -67,7 +67,25 @@
         <p class="text-sm font-semibold text-gray-600">주변에 들릴만한 곳 🛍️</p>
         <span class="text-xs text-gray-400">루트 주변 상권</span>
       </div>
-      <div class="flex flex-col gap-3">
+
+      <!-- 로딩 -->
+      <div v-if="isLoadingPlaces" class="flex items-center justify-center py-6 gap-2">
+        <span class="w-4 h-4 rounded-full border-2 border-nadle-green border-t-transparent animate-spin"></span>
+        <span class="text-xs text-gray-400">주변 상권 불러오는 중…</span>
+      </div>
+
+      <!-- 에러 -->
+      <div v-else-if="placesError" class="py-4 text-center">
+        <p class="text-xs text-gray-400">{{ placesError }}</p>
+      </div>
+
+      <!-- 결과 없음 -->
+      <div v-else-if="nearbyPlaces.length === 0" class="py-4 text-center">
+        <p class="text-xs text-gray-400">반경 1km 내 상권 정보가 없어요</p>
+      </div>
+
+      <!-- 목록 -->
+      <div v-else class="flex flex-col gap-3">
         <button
           v-for="place in nearbyPlaces"
           :key="place.id"
@@ -105,10 +123,11 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRideStore } from '@/stores/useRideStore'
 import { useHistoryStore } from '@/stores/useHistoryStore'
+import { fetchNearbyStores } from '@/api/stores'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import NearbyPlaceDetailSheet from '@/components/map/NearbyPlaceDetailSheet.vue'
 
@@ -116,42 +135,11 @@ const router = useRouter()
 const rideStore = useRideStore()
 const historyStore = useHistoryStore()
 
-// TODO: 실제 거리/시간은 주행 중 누적
 const summary = { distance: '4.2km', time: '38분' }
 
-// TODO: 백엔드 API로 루트 종료 좌표 기반 상권 3개 받아오기
-const nearbyPlaces = ref([
-  {
-    id: 1,
-    emoji: '☕',
-    name: '카페 마실',
-    category: 'cafe',
-    address: '서울시 종로구 창경궁로 100',
-    description: '고즈넉한 한옥 골목 사이에 자리한 감성 카페. 직접 로스팅한 원두와 계절 음료를 선보이며, 창가 자리에서 골목 풍경을 즐기기 좋아요.',
-    lat: 37.5796,
-    lng: 126.9946
-  },
-  {
-    id: 2,
-    emoji: '🍜',
-    name: '북촌 손칼국수',
-    category: 'restaurant',
-    address: '서울시 종로구 계동길 42',
-    description: '30년 전통의 손칼국수 전문점. 멸치 육수를 오래 끓여 깊고 구수한 국물 맛이 일품이며 현지인들이 즐겨 찾는 곳입니다.',
-    lat: 37.5831,
-    lng: 126.9836
-  },
-  {
-    id: 3,
-    emoji: '🥐',
-    name: '삼청 베이커리',
-    category: 'bakery',
-    address: '서울시 종로구 삼청로 45',
-    description: '삼청동 언덕길 옆 작은 베이커리. 매일 아침 직접 구운 소금빵과 크루아상이 인기이며 테이크아웃 커피도 맛있어요.',
-    lat: 37.5842,
-    lng: 126.9803
-  }
-])
+const nearbyPlaces = ref([])
+const isLoadingPlaces = ref(false)
+const placesError = ref(null)
 
 const selectedPlace = ref(null)
 
@@ -174,6 +162,30 @@ function categoryBadge(cat) {
 function openPlaceDetail(place) {
   selectedPlace.value = place
 }
+
+async function loadNearbyPlaces() {
+  const destinations = rideStore.destinations
+  if (!destinations.length) return
+
+  const last = destinations[destinations.length - 1]
+  if (!last?.lat || !last?.lng) return
+
+  isLoadingPlaces.value = true
+  placesError.value = null
+
+  try {
+    nearbyPlaces.value = await fetchNearbyStores(last.lat, last.lng, 1000)
+  } catch (err) {
+    console.error('[NearbyStores]', err)
+    placesError.value = '주변 상권을 불러오지 못했어요'
+  } finally {
+    isLoadingPlaces.value = false
+  }
+}
+
+onMounted(() => {
+  loadNearbyPlaces()
+})
 
 function onGoHome() {
   historyStore.addRecord({
