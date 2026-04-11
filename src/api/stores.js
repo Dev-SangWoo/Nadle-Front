@@ -1,5 +1,5 @@
 // 개발 환경: Vite 프록시(/api)로 CORS 우회 / 프로덕션: 직접 호출
-const BASE_URL = import.meta.env.DEV ? '' : 'https://nadle-backend.onrender.com'
+const BASE_URL = import.meta.env.DEV ? '' : import.meta.env.VITE_API_BASE_URL
 
 /**
  * indsMclsCdNm(중분류명) → { category, emoji } 매핑
