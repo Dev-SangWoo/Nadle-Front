@@ -77,8 +77,7 @@
     <!-- 주변에 들릴만한 곳 -->
     <div class="mx-4 mt-4 bg-white rounded-2xl p-5 shadow-sm">
       <div class="flex items-center justify-between mb-3">
-        <p class="text-sm font-semibold text-gray-600">주변에 들릴만한 곳 🛍️</p>
-        <span class="text-xs text-gray-400">루트 주변 상권</span>
+        <p class="text-sm font-semibold text-gray-600">주변에 들릴만한 곳 🍽️</p>
       </div>
 
       <!-- 로딩 -->
