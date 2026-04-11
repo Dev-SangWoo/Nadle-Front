@@ -2,7 +2,12 @@
   <div class="flex flex-col h-full">
     <!-- 지도 영역 (상단) -->
     <div class="flex-1 min-h-0 relative">
-      <KakaoMap ref="mapRef" />
+      <KakaoMap
+        ref="mapRef"
+        :markers="stationMarkers"
+        :selected-id="selectedStation?.id ?? null"
+        @marker-click="onMarkerClick"
+      />
     </div>
 
     <!-- 하단 대여소 리스트 패널 -->
@@ -39,44 +44,45 @@
         이 대여소에서 출발 🚀
       </BaseButton>
     </div>
-
-    <!-- 대여소 상세 BottomSheet -->
-    <BottomSheet v-if="showDetail" @close="showDetail = false">
-      <div class="text-center py-2">
-        <p class="text-2xl mb-2">🚲</p>
-        <p class="text-lg font-bold text-gray-800">{{ selectedStation?.name }}</p>
-        <p class="text-sm text-gray-400 mt-1">잔여 자전거: {{ selectedStation?.available }}대</p>
-        <p class="text-sm text-gray-400">거리: {{ selectedStation?.distance }}m</p>
-        <BaseButton class="mt-5 w-full" @click="onConfirm">여기서 출발</BaseButton>
-      </div>
-    </BottomSheet>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRideStore } from '@/stores/useRideStore'
 import KakaoMap from '@/components/map/KakaoMap.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import BottomSheet from '@/components/ui/BottomSheet.vue'
 
 const router = useRouter()
 const rideStore = useRideStore()
 
 const selectedStation = ref(null)
-const showDetail = ref(false)
 
 // TODO: 실제 공공 자전거 API 연동
 const stations = ref([
-  { id: 1, name: '광화문역 1번 출구', available: 8, distance: 120 },
-  { id: 2, name: '경복궁 서측', available: 3, distance: 250 },
-  { id: 3, name: '세종문화회관 앞', available: 12, distance: 310 }
+  { id: 1, name: '광화문역 1번 출구', available: 8, distance: 120, lat: 37.5716, lng: 126.9768 },
+  { id: 2, name: '경복궁 서측', available: 3, distance: 250, lat: 37.5779, lng: 126.9750 },
+  { id: 3, name: '세종문화회관 앞', available: 12, distance: 310, lat: 37.5724, lng: 126.9760 }
 ])
 
+const stationMarkers = computed(() =>
+  stations.value.map(s => ({
+    id: s.id,
+    lat: s.lat,
+    lng: s.lng,
+    label: '🚲'
+  }))
+)
+
 function onStationSelect(station) {
-  selectedStation.value = station
-  showDetail.value = true
+  selectedStation.value =
+    selectedStation.value?.id === station.id ? null : station
+}
+
+function onMarkerClick(marker) {
+  const station = stations.value.find(s => s.id === marker.id)
+  if (station) onStationSelect(station)
 }
 
 function onConfirm() {
