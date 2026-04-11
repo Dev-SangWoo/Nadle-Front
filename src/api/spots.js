@@ -50,16 +50,22 @@ function toImageArray(raw) {
 export function mapApiSpotToDestination(raw) {
   if (!raw || typeof raw !== 'object') return null
 
-  const id = raw.spotId ?? raw.id
+  const id = raw.spotId ?? raw.id ?? raw.contentId
   if (id == null) return null
 
-  const lat = Number(raw.lat ?? raw.latitude)
-  const lng = Number(raw.lng ?? raw.longitude ?? raw.lon)
+  // routes/recommend 등: mapy=위도, mapx=경도 (한국관광공사 API 관례)
+  const lat = Number(raw.lat ?? raw.latitude ?? raw.mapy)
+  const lng = Number(raw.lng ?? raw.longitude ?? raw.lon ?? raw.mapx)
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
 
   const name = String(raw.spotName ?? raw.name ?? raw.title ?? '이름 없음')
   const description = String(
-    raw.description ?? raw.overview ?? raw.intro ?? raw.summary ?? ''
+    raw.description ??
+      raw.overview ??
+      raw.intro ??
+      raw.summary ??
+      raw.reason ??
+      ''
   )
   const address = String(raw.address ?? raw.addr ?? raw.roadAddress ?? '')
   const category = String(raw.category ?? 'TOUR').toUpperCase()
