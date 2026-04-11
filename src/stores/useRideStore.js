@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { fetchRouteRecommendDestinations } from '@/api/routes'
-import { fetchRandomNearbyDestinations } from '@/api/spots'
+// import { fetchRandomNearbyDestinations } from '@/api/spots' // AI만 쓸 때 랜덤 3개 폴백 비활성화
 import { useLocationStore } from '@/stores/useLocationStore'
 
 const FALLBACK_LAT = 37.5665
@@ -73,13 +73,14 @@ export const useRideStore = defineStore('ride', () => {
 
   /**
    * GET /api/v1/routes/recommend — AI 코스 추천
-   * 실패·빈 응답 시 주변 TOUR 랜덤 3곳으로 폴백
+   * (랜덤 3개 폴백은 주석 처리됨 — 실패 시 에러만)
    *
    * @param {object} [opts]
    * @param {number} [opts.stationLat]
    * @param {number} [opts.stationLng]
    * @param {number} [opts.duration=120] 예상 시간(분)
-   * @param {string} [opts.refinement] 채팅 조정 문구 (테마 프롬프트와 함께 전달)
+   * @param {string} [opts.refinement] 채팅 조정 문구 → API `requirements`에 합쳐서 전달
+   * @param {string} [opts.requirements] 직접 요구사항 문자열 (있으면 refinement·테마 조합 대신 우선)
    */
   async function loadRouteRecommendations(opts = {}) {
     destinationsLoading.value = true
@@ -103,17 +104,20 @@ export const useRideStore = defineStore('ride', () => {
 
       const themeText = prompt.value?.trim() || ''
       const refinement = opts.refinement?.trim() || ''
-      const combinedPrompt = refinement
-        ? themeText
-          ? `${themeText}\n\n조정 요청: ${refinement}`
-          : refinement
-        : themeText || undefined
+      const directReq = opts.requirements != null ? String(opts.requirements).trim() : ''
+      const requirements =
+        directReq ||
+        (refinement
+          ? themeText
+            ? `${themeText}\n\n추가 요청: ${refinement}`
+            : refinement
+          : themeText || undefined)
 
       const list = await fetchRouteRecommendDestinations({
         stationLat,
         stationLng,
         duration,
-        prompt: combinedPrompt
+        requirements
       })
 
       if (list.length > 0) {
@@ -124,31 +128,35 @@ export const useRideStore = defineStore('ride', () => {
       throw new Error('추천된 관광지가 없습니다.')
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
-      try {
-        const fallback = await fetchRandomNearbyDestinations(
-          stationLat,
-          stationLng,
-          {
-            count: 3,
-            radiusM: 2000,
-            poolSize: 50,
-            category: 'TOUR'
-          }
-        )
-        setDestinations(fallback)
-        if (fallback.length > 0) {
-          recommendFallback.value = true
-          destinationsError.value = null
-        } else {
-          destinationsError.value =
-            msg ||
-            '코스를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
-        }
-      } catch {
-        destinationsError.value =
-          msg || '코스를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
-        setDestinations([])
-      }
+      // 주변 TOUR 랜덤 3곳 폴백 (비활성화)
+      // try {
+      //   const fallback = await fetchRandomNearbyDestinations(
+      //     stationLat,
+      //     stationLng,
+      //     {
+      //       count: 3,
+      //       radiusM: 2000,
+      //       poolSize: 50,
+      //       category: 'TOUR'
+      //     }
+      //   )
+      //   setDestinations(fallback)
+      //   if (fallback.length > 0) {
+      //     recommendFallback.value = true
+      //     destinationsError.value = null
+      //   } else {
+      //     destinationsError.value =
+      //       msg ||
+      //       '코스를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
+      //   }
+      // } catch {
+      //   destinationsError.value =
+      //     msg || '코스를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
+      //   setDestinations([])
+      // }
+      destinationsError.value =
+        msg || '코스를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
+      setDestinations([])
     } finally {
       destinationsLoading.value = false
     }

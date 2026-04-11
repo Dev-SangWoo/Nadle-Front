@@ -25,7 +25,15 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: apiTarget,
           changeOrigin: true,
-          secure: true
+          secure: true,
+          /** Render cold start·느린 응답 시 기본 타임아웃으로 502 나는 경우 완화 */
+          timeout: 180_000,
+          proxyTimeout: 180_000,
+          configure(proxy) {
+            proxy.on('error', (err) => {
+              console.error('[vite proxy /api]', err?.message || err)
+            })
+          }
         }
       }
     }
