@@ -54,6 +54,26 @@
       </div>
     </div>
 
+    <!-- 결과 지도 -->
+    <div class="mx-4 mt-4 rounded-2xl overflow-hidden shadow-sm flex-shrink-0 relative" style="height: 240px;">
+      <KakaoMap
+        style="position: absolute; top: 0; right: 0; bottom: 0; left: 0;"
+        :markers="mapMarkers"
+        :level="5"
+      />
+      <div class="absolute bottom-3 left-3 z-10 flex items-center gap-3 bg-white/90 backdrop-blur-sm rounded-xl px-3 py-1.5 shadow-sm text-xs text-gray-600">
+        <span class="flex items-center gap-1">
+          <span class="inline-block w-4 h-4 rounded-full bg-nadle-green border-2 border-white shadow-sm"></span>코스
+        </span>
+        <span class="flex items-center gap-1">
+          <span class="inline-block w-3.5 h-3.5 rounded-full bg-blue-50 border-2 border-blue-200 shadow-sm"></span>주변상권
+        </span>
+        <span class="flex items-center gap-1">
+          <span class="inline-block w-3 h-3 rounded-full bg-blue-500 border-2 border-white shadow-sm"></span>내 위치
+        </span>
+      </div>
+    </div>
+
     <!-- 방문한 코스 -->
     <div class="mx-4 mt-4 bg-white rounded-2xl p-5 shadow-sm">
       <p class="text-sm font-semibold text-gray-600 mb-3">방문 코스</p>
@@ -135,13 +155,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRideStore } from '@/stores/useRideStore'
 import { useHistoryStore } from '@/stores/useHistoryStore'
 import { fetchNearbyStores } from '@/api/stores'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import NearbyPlaceDetailSheet from '@/components/map/NearbyPlaceDetailSheet.vue'
+import KakaoMap from '@/components/map/KakaoMap.vue'
 
 const router = useRouter()
 const rideStore = useRideStore()
@@ -152,6 +173,29 @@ const summary = { distance: '4.2km', time: '38분' }
 const nearbyPlaces = ref([])
 const isLoadingPlaces = ref(false)
 const placesError = ref(null)
+
+const mapMarkers = computed(() => {
+  const destMarkers = rideStore.destinations
+    .filter(d => d.lat && d.lng)
+    .map((d, i) => ({
+      lat: Number(d.lat),
+      lng: Number(d.lng),
+      label: String(i + 1),
+      id: `dest-${i}`
+    }))
+
+  const nearbyMarkers = nearbyPlaces.value
+    .filter(p => p.lat && p.lng)
+    .map(p => ({
+      lat: Number(p.lat),
+      lng: Number(p.lng),
+      label: p.emoji,
+      id: `nearby-${p.id}`,
+      nearbyPlace: true
+    }))
+
+  return [...destMarkers, ...nearbyMarkers]
+})
 
 const selectedPlace = ref(null)
 

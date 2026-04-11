@@ -168,27 +168,40 @@ function renderMarkers() {
     const bounds = new kakao.maps.LatLngBounds()
 
     props.markers.forEach((marker) => {
-      const { lat, lng, label, id, kindStation } = marker
+      const { lat, lng, label, id, kindStation, nearbyPlace } = marker
       const position = new kakao.maps.LatLng(lat, lng)
       bounds.extend(position)
 
       const el = document.createElement('div')
       const isKind = kindStation === true
+      const isNearby = nearbyPlace === true
+
+      let sizeStyle = 'width:32px;height:32px;'
+      let colorStyle = ''
+      if (isKind) {
+        colorStyle = ''
+      } else if (isNearby) {
+        sizeStyle = 'width:28px;height:28px;'
+        colorStyle = 'background:#EFF6FF;color:#1D4ED8;font-size:16px;border-color:#BFDBFE;'
+      } else {
+        colorStyle = 'background:#22C55E;color:#fff;font-weight:700;font-size:15px;'
+      }
+
       el.style.cssText =
-        'width:32px;height:32px;border-radius:50%;' +
-        (isKind
-          ? ''
-          : 'background:#22C55E;color:#fff;font-weight:700;font-size:15px;') +
+        sizeStyle +
+        'border-radius:50%;' +
+        colorStyle +
         'display:flex;align-items:center;justify-content:center;' +
-        'box-shadow:0 2px 6px rgba(0,0,0,.35);border:2px solid #fff;' +
+        'box-shadow:0 2px 6px rgba(0,0,0,.25);border:2px solid #fff;' +
         'transform:translate(-50%,-50%);cursor:pointer;' +
         'transition:transform .2s ease;'
+
       if (isKind) el.classList.add('kakao-marker-kind')
       if (label != null && label !== '') {
         el.textContent = label
-      } else if (!isKind) {
+      } else if (!isKind && !isNearby) {
         el.textContent = '반'
-      } else {
+      } else if (isKind) {
         el.textContent = '🚲'
       }
 
@@ -206,7 +219,7 @@ function renderMarkers() {
         content: el,
         yAnchor: 0.5,
         xAnchor: 0.5,
-        zIndex: isKind ? 3 : 2
+        zIndex: isKind ? 3 : isNearby ? 1 : 2
       })
       overlay.setMap(map.value)
       overlays.value.push(overlay)
