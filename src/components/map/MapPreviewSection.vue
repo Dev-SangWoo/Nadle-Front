@@ -8,7 +8,7 @@
       @click="openKakaoMap"
       class="absolute bottom-4 right-4 z-10 bg-yellow-400 text-gray-900 text-xs font-bold px-4 py-2 rounded-xl shadow-md flex items-center gap-1 active:scale-95 transition-transform"
     >
-      <span>🗺️</span> 카카오맵으로 열기
+      <span>🚲</span> 자전거 길찾기
     </button>
 
     <!-- 현재 목적지 배지 (주행 중) -->
@@ -26,7 +26,11 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useLocationStore } from '@/stores/useLocationStore'
+import { kakaoBicycleRouteUrl, kakaoRouteToOnlyUrl } from '@/utils/kakaoMapLinks'
 import KakaoMap from './KakaoMap.vue'
+
+const locationStore = useLocationStore()
 
 const props = defineProps({
   destinations: { type: Array, default: () => [] },
@@ -51,13 +55,23 @@ const mapMarkers = computed(() =>
 function openKakaoMap() {
   if (!props.destinations.length) return
   const dest = props.destinations[props.currentIndex] ?? props.destinations[0]
-  const url = `kakaomap://look?p=${dest.lat ?? 37.5665},${dest.lng ?? 126.9780}`
-  const webUrl = `https://map.kakao.com/link/to/${dest.spotName},${dest.lat ?? 37.5665},${dest.lng ?? 126.9780}`
-  try {
-    window.location.href = url
-    setTimeout(() => { window.open(webUrl, '_blank') }, 1500)
-  } catch {
-    window.open(webUrl, '_blank')
-  }
+  const toLat = Number(dest.lat)
+  const toLng = Number(dest.lng)
+  const toName = dest.spotName ?? '목적지'
+  if (!Number.isFinite(toLat) || !Number.isFinite(toLng)) return
+
+  const oLat = locationStore.lat
+  const oLng = locationStore.lng
+  const hasMyPos =
+    oLat != null &&
+    oLng != null &&
+    Number.isFinite(Number(oLat)) &&
+    Number.isFinite(Number(oLng))
+
+  const webUrl = hasMyPos
+    ? kakaoBicycleRouteUrl(oLat, oLng, toName, toLat, toLng)
+    : kakaoRouteToOnlyUrl(toName, toLat, toLng)
+
+  window.open(webUrl, '_blank', 'noopener,noreferrer')
 }
 </script>

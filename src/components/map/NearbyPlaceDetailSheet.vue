@@ -35,7 +35,7 @@
       rel="noopener"
       class="block w-full py-4 rounded-2xl text-base font-bold text-center bg-nadle-green text-white shadow-md active:scale-95 transition-all mb-3"
     >
-      🗺️ 지도로 연결
+      🚲 자전거 길찾기
     </a>
 
     <!-- 닫기 -->
@@ -51,6 +51,10 @@
 <script setup>
 import { computed } from 'vue'
 import BottomSheet from '@/components/ui/BottomSheet.vue'
+import { useLocationStore } from '@/stores/useLocationStore'
+import { kakaoBicycleRouteUrl, kakaoRouteToOnlyUrl } from '@/utils/kakaoMapLinks'
+
+const locationStore = useLocationStore()
 
 const props = defineProps({
   /**
@@ -80,9 +84,21 @@ const categoryStyle = computed(() => CATEGORY_MAP[props.place?.category] ?? DEFA
 
 const kakaoMapUrl = computed(() => {
   const { name, lat, lng } = props.place
-  if (lat && lng) {
-    return `https://map.kakao.com/link/map/${encodeURIComponent(name)},${lat},${lng}`
+  const toLat = Number(lat)
+  const toLng = Number(lng)
+  if (!Number.isFinite(toLat) || !Number.isFinite(toLng)) {
+    return `https://map.kakao.com/link/search/${encodeURIComponent(name)}`
   }
-  return `https://map.kakao.com/link/search/${encodeURIComponent(name)}`
+  const oLat = locationStore.lat
+  const oLng = locationStore.lng
+  const hasMy =
+    oLat != null &&
+    oLng != null &&
+    Number.isFinite(Number(oLat)) &&
+    Number.isFinite(Number(oLng))
+  if (hasMy) {
+    return kakaoBicycleRouteUrl(oLat, oLng, name, toLat, toLng)
+  }
+  return kakaoRouteToOnlyUrl(name, toLat, toLng)
 })
 </script>

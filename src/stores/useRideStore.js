@@ -1,72 +1,157 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { fetchRouteRecommendDestinations } from '@/api/routes'
+import { fetchRandomNearbyDestinations } from '@/api/spots'
+import { useLocationStore } from '@/stores/useLocationStore'
+
+const FALLBACK_LAT = 37.5665
+const FALLBACK_LNG = 126.978
 
 export const useRideStore = defineStore('ride', () => {
-  // AI 프롬프트 (테마 or 자유입력)
   const prompt = ref('')
 
-  // 선택된 대여소
   const selectedStation = ref(null)
 
-  // AI 추천 목적지 목록
   const destinations = ref([])
 
-  // 현재 목적지 인덱스
+  const destinationsLoading = ref(false)
+
+  const destinationsError = ref(null)
+
+  /** AI 추천 실패 후 주변 랜덤(TOUR)으로 대체했을 때 true */
+  const recommendFallback = ref(false)
+
   const currentDestIndex = ref(0)
 
-  // 획득한 스탬프
   const stamps = ref([])
 
-  // 주행 상태
   const isRiding = ref(false)
 
   function setPrompt(text) {
     prompt.value = text
-    // TODO: AI API 호출 → destinations 업데이트
-    destinations.value = [
-      {
-        spotId: '126508',
-        spotName: '경복궁',
-        description: '조선 왕조의 법궁으로, 1395년에 창건되었습니다. 근정전, 경회루 등 수려한 전각이 어우러져 한국 전통 건축미의 정수를 보여줍니다. 수문장 교대식 등 다양한 전통 공연도 즐길 수 있어요.',
-        category: 'CULTURE',
-        address: '서울특별시 종로구 사직로 161',
-        lat: 37.579617,
-        lng: 126.977041,
-        images: [
-          'https://images.unsplash.com/photo-1601621915196-2621bfb0cd6e?w=800&q=80',
-          'https://images.unsplash.com/photo-1548115184-bc6544d06a58?w=800&q=80'
-        ],
-        tel: '02-3700-3900'
-      },
-      {
-        spotId: '264570',
-        spotName: '인사동',
-        description: '전통 공예품과 갤러리, 찻집이 가득한 서울의 대표 문화 거리입니다. 주말 차 없는 거리로 운영되며, 한복을 입고 거닐기 좋은 분위기가 매력입니다.',
-        category: 'TOUR',
-        address: '서울특별시 종로구 인사동길 일대',
-        lat: 37.5742,
-        lng: 126.9847,
-        images: [
-          'https://images.unsplash.com/photo-1617093727343-374698b1b08d?w=800&q=80'
-        ],
-        tel: null
-      },
-      {
-        spotId: '797997',
-        spotName: '청계천',
-        description: '서울 도심을 가로지르는 약 5.8km의 복원 하천입니다. 계절마다 다양한 꽃과 조명 축제가 열리며, 자전거 산책로와 함께 힐링 코스로 인기가 높습니다.',
-        category: 'NATURE',
-        address: '서울특별시 종로구 청계천로 일대',
-        lat: 37.5696,
-        lng: 126.9790,
-        images: [
-          'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80',
-          'https://images.unsplash.com/photo-1601621915196-2621bfb0cd6e?w=800&q=80',
-          'https://images.unsplash.com/photo-1617093727343-374698b1b08d?w=800&q=80'
-        ],
-        tel: '02-2290-7111'
+  }
+
+  /**
+   * 대여소·GPS·폴백 순으로 기준 좌표 결정 (추천 API stationLat/Lng)
+   */
+  async function resolveStationCoords(opts, locationStore) {
+    const oLat = opts.stationLat
+    const oLng = opts.stationLng
+    if (
+      oLat != null &&
+      oLng != null &&
+      Number.isFinite(Number(oLat)) &&
+      Number.isFinite(Number(oLng))
+    ) {
+      return { lat: Number(oLat), lng: Number(oLng) }
+    }
+
+    const st = selectedStation.value
+    if (
+      st?.lat != null &&
+      st?.lng != null &&
+      Number.isFinite(Number(st.lat)) &&
+      Number.isFinite(Number(st.lng))
+    ) {
+      return { lat: Number(st.lat), lng: Number(st.lng) }
+    }
+
+    const ready = await locationStore.waitForCoords(18000)
+    if (ready) {
+      return { lat: ready.lat, lng: ready.lng }
+    }
+
+    const fl = locationStore.lat
+    const fg = locationStore.lng
+    return {
+      lat:
+        fl != null && Number.isFinite(Number(fl)) ? Number(fl) : FALLBACK_LAT,
+      lng:
+        fg != null && Number.isFinite(Number(fg)) ? Number(fg) : FALLBACK_LNG
+    }
+  }
+
+  /**
+   * GET /api/v1/routes/recommend — AI 코스 추천
+   * 실패·빈 응답 시 주변 TOUR 랜덤 3곳으로 폴백
+   *
+   * @param {object} [opts]
+   * @param {number} [opts.stationLat]
+   * @param {number} [opts.stationLng]
+   * @param {number} [opts.duration=120] 예상 시간(분)
+   * @param {string} [opts.refinement] 채팅 조정 문구 (테마 프롬프트와 함께 전달)
+   */
+  async function loadRouteRecommendations(opts = {}) {
+    destinationsLoading.value = true
+    destinationsError.value = null
+    recommendFallback.value = false
+
+    const locationStore = useLocationStore()
+    const durationRaw = opts.duration != null ? Number(opts.duration) : 120
+    const duration =
+      Number.isFinite(durationRaw) && durationRaw > 0
+        ? Math.floor(durationRaw)
+        : 120
+
+    let stationLat = FALLBACK_LAT
+    let stationLng = FALLBACK_LNG
+
+    try {
+      const coords = await resolveStationCoords(opts, locationStore)
+      stationLat = coords.lat
+      stationLng = coords.lng
+
+      const themeText = prompt.value?.trim() || ''
+      const refinement = opts.refinement?.trim() || ''
+      const combinedPrompt = refinement
+        ? themeText
+          ? `${themeText}\n\n조정 요청: ${refinement}`
+          : refinement
+        : themeText || undefined
+
+      const list = await fetchRouteRecommendDestinations({
+        stationLat,
+        stationLng,
+        duration,
+        prompt: combinedPrompt
+      })
+
+      if (list.length > 0) {
+        setDestinations(list)
+        return
       }
-    ]
+
+      throw new Error('추천된 관광지가 없습니다.')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      try {
+        const fallback = await fetchRandomNearbyDestinations(
+          stationLat,
+          stationLng,
+          {
+            count: 3,
+            radiusM: 2000,
+            poolSize: 50,
+            category: 'TOUR'
+          }
+        )
+        setDestinations(fallback)
+        if (fallback.length > 0) {
+          recommendFallback.value = true
+          destinationsError.value = null
+        } else {
+          destinationsError.value =
+            msg ||
+            '코스를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
+        }
+      } catch {
+        destinationsError.value =
+          msg || '코스를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
+        setDestinations([])
+      }
+    } finally {
+      destinationsLoading.value = false
+    }
   }
 
   function setStation(station) {
@@ -98,6 +183,9 @@ export const useRideStore = defineStore('ride', () => {
     prompt.value = ''
     selectedStation.value = null
     destinations.value = []
+    destinationsLoading.value = false
+    destinationsError.value = null
+    recommendFallback.value = false
     currentDestIndex.value = 0
     stamps.value = []
     isRiding.value = false
@@ -107,12 +195,16 @@ export const useRideStore = defineStore('ride', () => {
     prompt,
     selectedStation,
     destinations,
+    destinationsLoading,
+    destinationsError,
+    recommendFallback,
     currentDestIndex,
     stamps,
     isRiding,
     setPrompt,
     setStation,
     setDestinations,
+    loadRouteRecommendations,
     startRide,
     collectStamp,
     finishRide,
