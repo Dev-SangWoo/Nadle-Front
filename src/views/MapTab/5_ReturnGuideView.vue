@@ -244,6 +244,15 @@ function onMarkerClick(marker) {
 }
 
 function onReturnComplete() {
+  try {
+    const isKind =
+      selectedReturn.value != null &&
+      recommendedKindStation.value != null &&
+      selectedReturn.value.id === recommendedKindStation.value.id
+    rideStore.setKindStation(isKind)
+  } catch (e) {
+    console.warn('[ReturnGuide] setKindStation error:', e)
+  }
   router.push('/map/result')
 }
 </script>

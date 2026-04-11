@@ -10,14 +10,27 @@
     <!-- 획득한 스탬프 -->
     <div class="mx-4 mt-4 bg-white rounded-2xl p-5 shadow-sm">
       <p class="text-sm font-semibold text-gray-600 mb-3">획득한 스탬프</p>
-      <div class="flex gap-3 flex-wrap">
+      <div class="grid grid-cols-4 gap-y-4">
         <div
           v-for="stamp in rideStore.stamps"
           :key="stamp.name"
           class="flex flex-col items-center"
         >
-          <span class="text-4xl">🏅</span>
-          <p class="text-xs text-gray-500 mt-1 text-center">{{ stamp.name }}</p>
+          <div class="h-12 flex items-center justify-center">
+            <span class="text-4xl">🏅</span>
+          </div>
+          <p class="text-xs text-gray-500 mt-1 text-center leading-tight">{{ stamp.name }}</p>
+        </div>
+
+        <!-- 착한대여소 선택 스탬프 -->
+        <div v-if="rideStore.choseKindStation" class="flex flex-col items-center">
+          <div class="h-12 flex items-center justify-center">
+            <span
+              class="w-11 h-11 rounded-full bg-gradient-to-br from-nadle-green to-green-600 flex items-center justify-center text-xl shadow-md ring-2 ring-green-200"
+              aria-label="착한대여소 선택 스탬프"
+            >🚲</span>
+          </div>
+          <p class="text-xs font-bold text-nadle-green mt-1 text-center leading-tight">착한대여소 선택</p>
         </div>
       </div>
     </div>

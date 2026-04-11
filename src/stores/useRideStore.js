@@ -25,6 +25,8 @@ export const useRideStore = defineStore('ride', () => {
 
   const stamps = ref([])
 
+  const choseKindStation = ref(false)
+
   const isRiding = ref(false)
 
   function setPrompt(text) {
@@ -175,6 +177,10 @@ export const useRideStore = defineStore('ride', () => {
     currentDestIndex.value++
   }
 
+  function setKindStation(value) {
+    choseKindStation.value = value
+  }
+
   function finishRide() {
     isRiding.value = false
   }
@@ -188,6 +194,7 @@ export const useRideStore = defineStore('ride', () => {
     recommendFallback.value = false
     currentDestIndex.value = 0
     stamps.value = []
+    choseKindStation.value = false
     isRiding.value = false
   }
 
@@ -200,6 +207,7 @@ export const useRideStore = defineStore('ride', () => {
     recommendFallback,
     currentDestIndex,
     stamps,
+    choseKindStation,
     isRiding,
     setPrompt,
     setStation,
@@ -207,6 +215,7 @@ export const useRideStore = defineStore('ride', () => {
     loadRouteRecommendations,
     startRide,
     collectStamp,
+    setKindStation,
     finishRide,
     resetRide
   }
