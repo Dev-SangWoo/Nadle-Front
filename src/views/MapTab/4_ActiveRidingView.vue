@@ -55,8 +55,18 @@ const router = useRouter()
 const rideStore = useRideStore()
 
 const showMission = ref(false)
-const missionTypes = ['quiz', 'camera', 'rest']
-const currentMissionType = ref(missionTypes[Math.floor(Math.random() * missionTypes.length)])
+
+function shuffled(arr) {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+const missionQueue = shuffled(['quiz', 'camera', 'rest'])
+const currentMissionType = ref(missionQueue[0])
 
 const currentDestination = computed(
   () => rideStore.destinations[rideStore.currentDestIndex] ?? null
@@ -74,7 +84,7 @@ function onMissionComplete() {
   if (isLast) {
     router.push('/map/return')
   } else {
-    currentMissionType.value = missionTypes[Math.floor(Math.random() * missionTypes.length)]
+    currentMissionType.value = missionQueue[rideStore.currentDestIndex]
   }
 }
 </script>
