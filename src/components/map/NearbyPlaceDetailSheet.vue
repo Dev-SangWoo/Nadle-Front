@@ -21,8 +21,11 @@
     </div>
 
     <!-- 간단 설명 -->
-    <p class="text-sm text-gray-700 leading-relaxed mb-6">
+    <p v-if="place.description" class="text-sm text-gray-700 leading-relaxed mb-6">
       {{ place.description }}
+    </p>
+    <p v-else-if="place.subCategory" class="text-sm text-gray-500 leading-relaxed mb-6">
+      {{ place.subCategory }}
     </p>
 
     <!-- 지도로 연결 버튼 -->
