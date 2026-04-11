@@ -3,7 +3,8 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { useLocationStore } from '@/stores/useLocationStore'
 
 const props = defineProps({
   center: {
@@ -12,8 +13,12 @@ const props = defineProps({
   },
   level: { type: Number, default: 4 },
   markers: { type: Array, default: () => [] },
-  selectedId: { type: [String, Number], default: null }
+  selectedId: { type: [String, Number], default: null },
+  /** 스토어에 위치가 있으면 파란 점으로 표시 */
+  showUserLocation: { type: Boolean, default: true }
 })
+
+const locationStore = useLocationStore()
 
 const emit = defineEmits(['mapReady', 'markerClick'])
 
@@ -35,6 +40,27 @@ function injectGlowStyle() {
     .kakao-marker-glow {
       animation: marker-glow 1.5s ease-in-out infinite;
       transform: translate(-50%,-50%) scale(1.2);
+    }
+    @keyframes marker-kind-pulse {
+      0%, 100% { box-shadow: 0 0 0 3px rgba(234,88,12,.45), 0 2px 8px rgba(0,0,0,.35); }
+      50% { box-shadow: 0 0 0 6px rgba(234,88,12,.25), 0 2px 8px rgba(0,0,0,.35); }
+    }
+    .kakao-marker-kind {
+      background: linear-gradient(145deg, #F97316, #EA580C) !important;
+      width: 32px !important;
+      height: 32px !important;
+      font-size: 17px !important;
+      line-height: 1 !important;
+    }
+    .kakao-marker-kind:not(.kakao-marker-glow) {
+      animation: marker-kind-pulse 2s ease-in-out infinite;
+    }
+    @keyframes marker-glow-kind {
+      0%, 100% { box-shadow: 0 0 6px 3px rgba(234,88,12,.5), 0 2px 6px rgba(0,0,0,.35); }
+      50% { box-shadow: 0 0 14px 7px rgba(249,115,22,.55), 0 2px 6px rgba(0,0,0,.35); }
+    }
+    .kakao-marker-kind.kakao-marker-glow {
+      animation: marker-glow-kind 1.5s ease-in-out infinite;
     }
   `
   document.head.appendChild(style)
@@ -75,50 +101,125 @@ function clearOverlays() {
   markerEls.value.clear()
 }
 
+/** 마커 전용 오버레이와 분리 (내 위치는 유지) */
+let userLocationOverlay = null
+let userLocationEl = null
+
+function removeUserLocationOverlay() {
+  if (userLocationOverlay) {
+    userLocationOverlay.setMap(null)
+    userLocationOverlay = null
+  }
+  userLocationEl = null
+}
+
+function userLatLng() {
+  if (
+    !props.showUserLocation ||
+    locationStore.lat == null ||
+    locationStore.lng == null
+  ) {
+    return null
+  }
+  const { kakao } = window
+  return new kakao.maps.LatLng(locationStore.lat, locationStore.lng)
+}
+
+function updateUserLocationOverlay() {
+  if (!map.value) return
+  const pos = userLatLng()
+  if (!pos) {
+    removeUserLocationOverlay()
+    return
+  }
+
+  if (!userLocationEl) {
+    userLocationEl = document.createElement('div')
+    userLocationEl.style.cssText =
+      'width:14px;height:14px;border-radius:50%;' +
+      'background:#3B82F6;border:3px solid #fff;' +
+      'box-shadow:0 2px 8px rgba(0,0,0,.35);' +
+      'transform:translate(-50%,-50%);'
+  }
+
+  if (!userLocationOverlay) {
+    userLocationOverlay = new window.kakao.maps.CustomOverlay({
+      position: pos,
+      content: userLocationEl,
+      yAnchor: 0.5,
+      xAnchor: 0.5
+    })
+    userLocationOverlay.setMap(map.value)
+  } else {
+    userLocationOverlay.setPosition(pos)
+  }
+}
+
 function renderMarkers() {
-  if (!map.value || !props.markers.length) return
+  if (!map.value) return
   const { kakao } = window
 
   clearOverlays()
   injectGlowStyle()
 
-  const bounds = new kakao.maps.LatLngBounds()
+  const userPos = userLatLng()
 
-  props.markers.forEach((marker) => {
-    const { lat, lng, label, id } = marker
-    const position = new kakao.maps.LatLng(lat, lng)
-    bounds.extend(position)
+  if (props.markers.length > 0) {
+    const bounds = new kakao.maps.LatLngBounds()
 
-    const el = document.createElement('div')
-    el.style.cssText =
-      'width:32px;height:32px;border-radius:50%;' +
-      'background:#22C55E;color:#fff;font-weight:700;font-size:14px;' +
-      'display:flex;align-items:center;justify-content:center;' +
-      'box-shadow:0 2px 6px rgba(0,0,0,.35);border:2px solid #fff;' +
-      'transform:translate(-50%,-50%);cursor:pointer;' +
-      'transition:transform .2s ease;'
-    el.textContent = label
+    props.markers.forEach((marker) => {
+      const { lat, lng, label, id, kindStation } = marker
+      const position = new kakao.maps.LatLng(lat, lng)
+      bounds.extend(position)
 
-    if (id != null && id === props.selectedId) {
-      el.classList.add('kakao-marker-glow')
-    }
+      const el = document.createElement('div')
+      const isKind = kindStation === true
+      el.style.cssText =
+        'width:32px;height:32px;border-radius:50%;' +
+        (isKind
+          ? ''
+          : 'background:#22C55E;color:#fff;font-weight:700;font-size:15px;') +
+        'display:flex;align-items:center;justify-content:center;' +
+        'box-shadow:0 2px 6px rgba(0,0,0,.35);border:2px solid #fff;' +
+        'transform:translate(-50%,-50%);cursor:pointer;' +
+        'transition:transform .2s ease;'
+      if (isKind) el.classList.add('kakao-marker-kind')
+      if (label != null && label !== '') {
+        el.textContent = label
+      } else if (!isKind) {
+        el.textContent = '반'
+      } else {
+        el.textContent = '🚲'
+      }
 
-    if (id != null) {
-      el.addEventListener('click', () => emit('markerClick', marker))
-      markerEls.value.set(id, el)
-    }
+      if (id != null && id === props.selectedId) {
+        el.classList.add('kakao-marker-glow')
+      }
 
-    const overlay = new kakao.maps.CustomOverlay({
-      position,
-      content: el,
-      yAnchor: 0.5,
-      xAnchor: 0.5
+      if (id != null) {
+        el.addEventListener('click', () => emit('markerClick', marker))
+        markerEls.value.set(id, el)
+      }
+
+      const overlay = new kakao.maps.CustomOverlay({
+        position,
+        content: el,
+        yAnchor: 0.5,
+        xAnchor: 0.5,
+        zIndex: isKind ? 3 : 2
+      })
+      overlay.setMap(map.value)
+      overlays.value.push(overlay)
     })
-    overlay.setMap(map.value)
-    overlays.value.push(overlay)
-  })
 
-  map.value.setBounds(bounds, 30, 30, 30, 30)
+    if (userPos) bounds.extend(userPos)
+    map.value.setBounds(bounds, 30, 30, 30, 30)
+  } else {
+    const center = userPos ?? new kakao.maps.LatLng(props.center.lat, props.center.lng)
+    map.value.setCenter(center)
+  }
+
+  updateUserLocationOverlay()
 }
 
 function updateSelection() {
@@ -135,7 +236,30 @@ watch(() => props.markers, () => {
   nextTick(renderMarkers)
 }, { deep: true })
 
+watch(() => props.showUserLocation, () => {
+  nextTick(renderMarkers)
+})
+
+watch(
+  () => [locationStore.lat, locationStore.lng],
+  () => {
+    nextTick(renderMarkers)
+  }
+)
+
 watch(() => props.selectedId, updateSelection)
+
+function initialCenterLatLng() {
+  const { kakao } = window
+  if (
+    props.showUserLocation &&
+    locationStore.lat != null &&
+    locationStore.lng != null
+  ) {
+    return new kakao.maps.LatLng(locationStore.lat, locationStore.lng)
+  }
+  return new kakao.maps.LatLng(props.center.lat, props.center.lng)
+}
 
 onMounted(async () => {
   const appKey = import.meta.env.VITE_KAKAO_MAP_APP_KEY
@@ -155,13 +279,17 @@ onMounted(async () => {
   window.kakao.maps.load(() => {
     const { kakao } = window
     const options = {
-      center: new kakao.maps.LatLng(props.center.lat, props.center.lng),
+      center: initialCenterLatLng(),
       level: props.level
     }
     map.value = new kakao.maps.Map(mapContainer.value, options)
     emit('mapReady')
     nextTick(renderMarkers)
   })
+})
+
+onUnmounted(() => {
+  removeUserLocationOverlay()
 })
 
 defineExpose({ mapContainer, map })

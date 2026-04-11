@@ -14,6 +14,14 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
 import TopLogoNav from '@/layouts/TopLogoNav.vue'
 import BottomTabNav from '@/layouts/BottomTabNav.vue'
+import { useLocationStore } from '@/stores/useLocationStore'
+
+const locationStore = useLocationStore()
+
+onMounted(() => {
+  locationStore.requestOnce()
+})
 </script>
