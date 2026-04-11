@@ -10,14 +10,27 @@
     <!-- 획득한 스탬프 -->
     <div class="mx-4 mt-4 bg-white rounded-2xl p-5 shadow-sm">
       <p class="text-sm font-semibold text-gray-600 mb-3">획득한 스탬프</p>
-      <div class="flex gap-3 flex-wrap">
+      <div class="grid grid-cols-4 gap-y-4">
         <div
           v-for="stamp in rideStore.stamps"
           :key="stamp.name"
           class="flex flex-col items-center"
         >
-          <span class="text-4xl">🏅</span>
-          <p class="text-xs text-gray-500 mt-1 text-center">{{ stamp.name }}</p>
+          <div class="h-12 flex items-center justify-center">
+            <span class="text-4xl">🏅</span>
+          </div>
+          <p class="text-xs text-gray-500 mt-1 text-center leading-tight">{{ stamp.name }}</p>
+        </div>
+
+        <!-- 착한대여소 선택 스탬프 -->
+        <div v-if="rideStore.choseKindStation" class="flex flex-col items-center">
+          <div class="h-12 flex items-center justify-center">
+            <span
+              class="w-11 h-11 rounded-full bg-gradient-to-br from-nadle-green to-green-600 flex items-center justify-center text-xl shadow-md ring-2 ring-green-200"
+              aria-label="착한대여소 선택 스탬프"
+            >🚲</span>
+          </div>
+          <p class="text-xs font-bold text-nadle-green mt-1 text-center leading-tight">착한대여소 선택</p>
         </div>
       </div>
     </div>
@@ -38,6 +51,26 @@
           <p class="text-xl font-bold text-nadle-green">{{ rideStore.stamps.length }}</p>
           <p class="text-xs text-gray-400">스탬프</p>
         </div>
+      </div>
+    </div>
+
+    <!-- 결과 지도 -->
+    <div class="mx-4 mt-4 rounded-2xl overflow-hidden shadow-sm flex-shrink-0 relative" style="height: 240px;">
+      <KakaoMap
+        style="position: absolute; top: 0; right: 0; bottom: 0; left: 0;"
+        :markers="mapMarkers"
+        :level="5"
+      />
+      <div class="absolute bottom-3 left-3 z-10 flex items-center gap-3 bg-white/90 backdrop-blur-sm rounded-xl px-3 py-1.5 shadow-sm text-xs text-gray-600">
+        <span class="flex items-center gap-1">
+          <span class="inline-block w-4 h-4 rounded-full bg-nadle-green border-2 border-white shadow-sm"></span>코스
+        </span>
+        <span class="flex items-center gap-1">
+          <span class="inline-block w-3.5 h-3.5 rounded-full bg-blue-50 border-2 border-blue-200 shadow-sm"></span>주변상권
+        </span>
+        <span class="flex items-center gap-1">
+          <span class="inline-block w-3 h-3 rounded-full bg-blue-500 border-2 border-white shadow-sm"></span>내 위치
+        </span>
       </div>
     </div>
 
@@ -64,8 +97,7 @@
     <!-- 주변에 들릴만한 곳 -->
     <div class="mx-4 mt-4 bg-white rounded-2xl p-5 shadow-sm">
       <div class="flex items-center justify-between mb-3">
-        <p class="text-sm font-semibold text-gray-600">주변에 들릴만한 곳 🛍️</p>
-        <span class="text-xs text-gray-400">루트 주변 상권</span>
+        <p class="text-sm font-semibold text-gray-600">주변에 들릴만한 곳 🍽️</p>
       </div>
 
       <!-- 로딩 -->
@@ -123,13 +155,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRideStore } from '@/stores/useRideStore'
 import { useHistoryStore } from '@/stores/useHistoryStore'
 import { fetchNearbyStores } from '@/api/stores'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import NearbyPlaceDetailSheet from '@/components/map/NearbyPlaceDetailSheet.vue'
+import KakaoMap from '@/components/map/KakaoMap.vue'
 
 const router = useRouter()
 const rideStore = useRideStore()
@@ -140,6 +173,29 @@ const summary = { distance: '4.2km', time: '38분' }
 const nearbyPlaces = ref([])
 const isLoadingPlaces = ref(false)
 const placesError = ref(null)
+
+const mapMarkers = computed(() => {
+  const destMarkers = rideStore.destinations
+    .filter(d => d.lat && d.lng)
+    .map((d, i) => ({
+      lat: Number(d.lat),
+      lng: Number(d.lng),
+      label: String(i + 1),
+      id: `dest-${i}`
+    }))
+
+  const nearbyMarkers = nearbyPlaces.value
+    .filter(p => p.lat && p.lng)
+    .map(p => ({
+      lat: Number(p.lat),
+      lng: Number(p.lng),
+      label: p.emoji,
+      id: `nearby-${p.id}`,
+      nearbyPlace: true
+    }))
+
+  return [...destMarkers, ...nearbyMarkers]
+})
 
 const selectedPlace = ref(null)
 

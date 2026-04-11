@@ -5,7 +5,7 @@
       @click.self="$emit('close')"
     >
       <div
-        class="w-full max-w-md bg-white rounded-t-3xl px-5 pt-5 pb-10 shadow-2xl"
+        class="relative w-full max-w-md bg-white rounded-t-3xl px-5 pt-5 pb-10 shadow-2xl overflow-hidden"
         style="max-height: 70vh; overflow-y: auto;"
       >
         <!-- 핸들 바 -->
