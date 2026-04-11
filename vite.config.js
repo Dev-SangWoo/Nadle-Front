@@ -29,5 +29,14 @@ export default defineConfig(({ mode }) => {
         }
       }
     }
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://nadle-backend.onrender.com',
+        changeOrigin: true,
+        secure: true
+      }
+    }
   }
 })
