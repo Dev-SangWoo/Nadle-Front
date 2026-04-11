@@ -174,7 +174,7 @@ async function loadNearbyPlaces() {
   placesError.value = null
 
   try {
-    nearbyPlaces.value = await fetchNearbyStores(last.lat, last.lng, 1000)
+    nearbyPlaces.value = await fetchNearbyStores(last.lat, last.lng, 500)
   } catch (err) {
     console.error('[NearbyStores]', err)
     placesError.value = '주변 상권을 불러오지 못했어요'

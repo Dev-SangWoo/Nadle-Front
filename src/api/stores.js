@@ -62,17 +62,19 @@ export async function fetchNearbyStores(lat, lng, radius = 1000) {
     throw new Error(json.message ?? '상권 조회 실패')
   }
 
-  return (json.result ?? []).map((item) => {
-    const { category, emoji } = resolveCategoryMeta(item.indsMclsCdNm, item.indsSclsCdNm)
-    return {
-      id:       item.bizesId,
-      name:     item.bizesNm,
-      category,
-      emoji,
-      address:  item.rdnWhlAddr,
-      lat:      item.lat,
-      lng:      item.lon,
-      subCategory: item.indsSclsCdNm ?? '',
-    }
-  })
+  return (json.result ?? [])
+    .filter((item) => item.indsSclsCdNm === '카페')
+    .map((item) => {
+      const { category, emoji } = resolveCategoryMeta(item.indsMclsCdNm, item.indsSclsCdNm)
+      return {
+        id:          item.bizesId,
+        name:        item.bizesNm,
+        category,
+        emoji,
+        address:     item.rdnWhlAddr,
+        lat:         item.lat,
+        lng:         item.lon,
+        subCategory: item.indsSclsCdNm ?? '',
+      }
+    })
 }
