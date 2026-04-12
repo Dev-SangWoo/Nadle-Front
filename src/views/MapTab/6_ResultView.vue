@@ -136,7 +136,7 @@
           <p class="text-xs text-gray-400">해당 카테고리의 장소가 없어요</p>
         </div>
         <button
-          v-for="place in filteredPlaces"
+          v-for="place in pagedPlaces"
           :key="place.id"
           class="flex items-center gap-3 w-full text-left rounded-xl border border-gray-100 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-all"
           @click="openPlaceDetail(place)"
@@ -154,6 +154,33 @@
           </div>
           <span class="text-gray-300 flex-shrink-0">›</span>
         </button>
+
+        <!-- 페이지네이션 -->
+        <div v-if="totalPages > 1" class="flex items-center justify-between pt-1">
+          <button
+            class="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"
+            :class="currentPage > 1
+              ? 'text-gray-600 bg-gray-100 active:bg-gray-200'
+              : 'text-gray-300 bg-gray-50 cursor-not-allowed'"
+            :disabled="currentPage <= 1"
+            @click="currentPage--"
+          >
+            ‹ 이전
+          </button>
+          <span class="text-xs text-gray-400">
+            {{ currentPage }} / {{ totalPages }}
+          </span>
+          <button
+            class="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"
+            :class="currentPage < totalPages
+              ? 'text-gray-600 bg-gray-100 active:bg-gray-200'
+              : 'text-gray-300 bg-gray-50 cursor-not-allowed'"
+            :disabled="currentPage >= totalPages"
+            @click="currentPage++"
+          >
+            다음 ›
+          </button>
+        </div>
       </div>
     </div>
 
@@ -172,7 +199,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRideStore } from '@/stores/useRideStore'
 import { useHistoryStore } from '@/stores/useHistoryStore'
@@ -197,13 +224,25 @@ const CATEGORY_TABS = [
   { id: 'cafe',       label: '카페' },
   { id: 'restaurant', label: '식당' },
   { id: 'bar',        label: '주점' },
-  { id: 'etc',        label: '기타' },
 ]
+
+const PAGE_SIZE = 10
+const currentPage = ref(1)
 
 const filteredPlaces = computed(() => {
   if (selectedCategory.value === 'all') return nearbyPlaces.value
   return nearbyPlaces.value.filter(p => p.category === selectedCategory.value)
 })
+
+const totalPages = computed(() => Math.ceil(filteredPlaces.value.length / PAGE_SIZE))
+
+const pagedPlaces = computed(() => {
+  const start = (currentPage.value - 1) * PAGE_SIZE
+  return filteredPlaces.value.slice(start, start + PAGE_SIZE)
+})
+
+// 카테고리 바뀌면 첫 페이지로
+watch(selectedCategory, () => { currentPage.value = 1 })
 
 // 해당 카테고리에 아이템이 있을 때만 탭을 보여줌
 const visibleTabs = computed(() => {
@@ -240,14 +279,15 @@ const CATEGORY_META = {
   cafe:       { label: '카페', badge: 'bg-amber-100 text-amber-700' },
   restaurant: { label: '식당', badge: 'bg-orange-100 text-orange-700' },
   bar:        { label: '주점', badge: 'bg-purple-100 text-purple-700' },
-  etc:        { label: '기타', badge: 'bg-gray-100 text-gray-600' },
 }
 
-// 식당은 중분류명(indsMclsCdNm), 기타는 소분류명(indsSclsCdNm) 그대로 표시
+// 기존 식당: midCategory(중분류명) / 기존 기타(useSubLabel): subCategory(소분류명)
 function categoryLabel(place) {
-  if (place.category === 'restaurant' && place.midCategory) return place.midCategory
-  if (place.category === 'etc' && place.subCategory) return place.subCategory
-  return CATEGORY_META[place.category]?.label ?? '기타'
+  if (place.category === 'restaurant') {
+    if (place.useSubLabel) return place.subCategory || CATEGORY_META.restaurant.label
+    return place.midCategory || CATEGORY_META.restaurant.label
+  }
+  return CATEGORY_META[place.category]?.label ?? CATEGORY_META.restaurant.label
 }
 function categoryBadge(cat) {
   return CATEGORY_META[cat]?.badge ?? 'bg-gray-100 text-gray-600'
