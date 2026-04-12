@@ -9,7 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "lucide-vue-next": "^0.511.0",
     "pinia": "^2.1.0",
+    "twemoji": "^14.0.2",
     "vue": "^3.4.0",
     "vue-router": "^4.3.0"
   },

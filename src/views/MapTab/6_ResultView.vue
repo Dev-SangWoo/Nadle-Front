@@ -370,7 +370,6 @@ const CATEGORY_TABS = [
   { id: 'cafe',       label: '카페' },
   { id: 'restaurant', label: '식당' },
   { id: 'bar',        label: '주점' },
-  { id: 'etc',        label: '기타' },
 ]
 
 /** 카테고리 필터 후 거리순(가까운 순) */
@@ -446,14 +445,15 @@ const CATEGORY_META = {
   cafe:       { label: '카페', badge: 'bg-amber-100 text-amber-700' },
   restaurant: { label: '식당', badge: 'bg-orange-100 text-orange-700' },
   bar:        { label: '주점', badge: 'bg-purple-100 text-purple-700' },
-  etc:        { label: '기타', badge: 'bg-gray-100 text-gray-600' },
 }
 
-// 식당은 중분류명(indsMclsCdNm), 기타는 소분류명(indsSclsCdNm) 그대로 표시
+// 기존 식당: midCategory(중분류명) / 기존 기타(useSubLabel): subCategory(소분류명)
 function categoryLabel(place) {
-  if (place.category === 'restaurant' && place.midCategory) return place.midCategory
-  if (place.category === 'etc' && place.subCategory) return place.subCategory
-  return CATEGORY_META[place.category]?.label ?? '기타'
+  if (place.category === 'restaurant') {
+    if (place.useSubLabel) return place.subCategory || CATEGORY_META.restaurant.label
+    return place.midCategory || CATEGORY_META.restaurant.label
+  }
+  return CATEGORY_META[place.category]?.label ?? CATEGORY_META.restaurant.label
 }
 function categoryBadge(cat) {
   return CATEGORY_META[cat]?.badge ?? 'bg-gray-100 text-gray-600'
