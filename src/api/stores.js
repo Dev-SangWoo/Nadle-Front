@@ -7,10 +7,10 @@ function resolveCategoryMeta(indsMclsCdNm, indsSclsCdNm) {
   const mid = indsMclsCdNm ?? ''
   const sub = indsSclsCdNm ?? ''
 
-  if (sub === '카페') return { category: 'cafe', emoji: '☕' }
-  if (RESTAURANT_MID.some(k => mid === k)) return { category: 'restaurant', emoji: '🍽️' }
-  if (mid === '주점') return { category: 'bar', emoji: '🍺' }
-  return { category: 'etc', emoji: '🏪' }
+  if (sub === '카페') return { category: 'cafe', emoji: '☕', useSubLabel: false }
+  if (RESTAURANT_MID.some(k => mid === k)) return { category: 'restaurant', emoji: '🍽️', useSubLabel: false }
+  if (mid === '주점') return { category: 'bar', emoji: '🍺', useSubLabel: false }
+  return { category: 'restaurant', emoji: '🍽️', useSubLabel: true }
 }
 
 /**
@@ -50,12 +50,13 @@ export async function fetchNearbyStores(lat, lng, radius = 1000) {
 
   return (json.result ?? [])
     .map((item) => {
-      const { category, emoji } = resolveCategoryMeta(item.indsMclsCdNm, item.indsSclsCdNm)
+      const { category, emoji, useSubLabel } = resolveCategoryMeta(item.indsMclsCdNm, item.indsSclsCdNm)
       return {
         id:          item.bizesId,
         name:        item.bizesNm,
         category,
         emoji,
+        useSubLabel,
         address:     item.rdnWhlAddr,
         lat:         item.lat,
         lng:         item.lon,

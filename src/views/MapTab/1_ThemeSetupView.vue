@@ -41,10 +41,30 @@ const rideStore = useRideStore()
 const selectedTheme = ref(null)
 
 const themes = [
-  { id: 1, emoji: '🌸', title: '벚꽃 코스', desc: '봄꽃 가득한 30분 루트' },
-  { id: 2, emoji: '🏛️', title: '역사 탐방', desc: '궁궐·문화재 중심 코스' },
-  { id: 3, emoji: '☕', title: '카페 투어', desc: '감성 카페 사이클링' },
-  { id: 4, emoji: '🌿', title: '공원 힐링', desc: '녹지·공원 위주 힐링 코스' }
+  {
+    id: 1,
+    title: '벚꽃 코스',
+    desc: '봄꽃 가득한 30분 루트',
+    image: 'https://images.unsplash.com/photo-1522383225653-ed111181a951?w=400&q=80'
+  },
+  {
+    id: 2,
+    title: '역사 탐방',
+    desc: '궁궐·문화재 중심 코스',
+    image: 'https://images.unsplash.com/photo-1548115184-bc6544d06a58?w=400&q=80'
+  },
+  {
+    id: 3,
+    title: '카페 투어',
+    desc: '감성 카페 사이클링',
+    image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80'
+  },
+  {
+    id: 4,
+    title: '공원 힐링',
+    desc: '녹지·공원 위주 힐링 코스',
+    image: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&q=80'
+  }
 ]
 
 function onThemeSelect(theme) {
