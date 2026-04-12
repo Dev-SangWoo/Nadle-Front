@@ -97,7 +97,21 @@
     <!-- 주변에 들릴만한 곳 -->
     <div class="mx-4 mt-4 bg-white rounded-2xl p-5 shadow-sm">
       <div class="flex items-center justify-between mb-3">
-        <p class="text-sm font-semibold text-gray-600">주변에 들릴만한 곳 🍽️</p>
+        <p class="text-sm font-semibold text-gray-600">주변에 들릴만한 곳</p>
+        <!-- 카테고리 탭 -->
+        <div v-if="!isLoadingPlaces && nearbyPlaces.length > 0" class="flex gap-1">
+          <button
+            v-for="tab in visibleTabs"
+            :key="tab.id"
+            class="text-xs px-2.5 py-1 rounded-full font-medium transition-all"
+            :class="selectedCategory === tab.id
+              ? 'bg-nadle-green text-white shadow-sm'
+              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
+            @click="selectedCategory = tab.id"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
       </div>
 
       <!-- 로딩 -->
@@ -118,8 +132,11 @@
 
       <!-- 목록 -->
       <div v-else class="flex flex-col gap-3">
+        <div v-if="filteredPlaces.length === 0" class="py-4 text-center">
+          <p class="text-xs text-gray-400">해당 카테고리의 장소가 없어요</p>
+        </div>
         <button
-          v-for="place in nearbyPlaces"
+          v-for="place in filteredPlaces"
           :key="place.id"
           class="flex items-center gap-3 w-full text-left rounded-xl border border-gray-100 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-all"
           @click="openPlaceDetail(place)"
@@ -130,7 +147,7 @@
               <p class="text-sm font-bold text-gray-800 truncate">{{ place.name }}</p>
               <span class="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
                 :class="categoryBadge(place.category)">
-                {{ categoryLabel(place.category) }}
+                {{ categoryLabel(place) }}
               </span>
             </div>
             <p class="text-xs text-gray-400 truncate">{{ place.address }}</p>
@@ -173,6 +190,26 @@ const summary = { distance: '4.2km', time: '38분' }
 const nearbyPlaces = ref([])
 const isLoadingPlaces = ref(false)
 const placesError = ref(null)
+const selectedCategory = ref('all')
+
+const CATEGORY_TABS = [
+  { id: 'all',        label: '전체' },
+  { id: 'cafe',       label: '카페' },
+  { id: 'restaurant', label: '식당' },
+  { id: 'bar',        label: '주점' },
+  { id: 'etc',        label: '기타' },
+]
+
+const filteredPlaces = computed(() => {
+  if (selectedCategory.value === 'all') return nearbyPlaces.value
+  return nearbyPlaces.value.filter(p => p.category === selectedCategory.value)
+})
+
+// 해당 카테고리에 아이템이 있을 때만 탭을 보여줌
+const visibleTabs = computed(() => {
+  const usedCategories = new Set(nearbyPlaces.value.map(p => p.category))
+  return CATEGORY_TABS.filter(t => t.id === 'all' || usedCategories.has(t.id))
+})
 
 const mapMarkers = computed(() => {
   const destMarkers = rideStore.destinations
@@ -184,7 +221,7 @@ const mapMarkers = computed(() => {
       id: `dest-${i}`
     }))
 
-  const nearbyMarkers = nearbyPlaces.value
+  const nearbyMarkers = filteredPlaces.value
     .filter(p => p.lat && p.lng)
     .map(p => ({
       lat: Number(p.lat),
@@ -200,16 +237,17 @@ const mapMarkers = computed(() => {
 const selectedPlace = ref(null)
 
 const CATEGORY_META = {
-  cafe:       { label: '카페',    badge: 'bg-amber-100 text-amber-700' },
-  restaurant: { label: '식당',    badge: 'bg-orange-100 text-orange-700' },
-  bakery:     { label: '베이커리', badge: 'bg-yellow-100 text-yellow-700' },
-  bar:        { label: '바·주점', badge: 'bg-purple-100 text-purple-700' },
-  shopping:   { label: '쇼핑',    badge: 'bg-pink-100 text-pink-700' },
-  attraction: { label: '명소',    badge: 'bg-blue-100 text-blue-700' },
+  cafe:       { label: '카페', badge: 'bg-amber-100 text-amber-700' },
+  restaurant: { label: '식당', badge: 'bg-orange-100 text-orange-700' },
+  bar:        { label: '주점', badge: 'bg-purple-100 text-purple-700' },
+  etc:        { label: '기타', badge: 'bg-gray-100 text-gray-600' },
 }
 
-function categoryLabel(cat) {
-  return CATEGORY_META[cat]?.label ?? '상권'
+// 식당은 중분류명(indsMclsCdNm), 기타는 소분류명(indsSclsCdNm) 그대로 표시
+function categoryLabel(place) {
+  if (place.category === 'restaurant' && place.midCategory) return place.midCategory
+  if (place.category === 'etc' && place.subCategory) return place.subCategory
+  return CATEGORY_META[place.category]?.label ?? '기타'
 }
 function categoryBadge(cat) {
   return CATEGORY_META[cat]?.badge ?? 'bg-gray-100 text-gray-600'
