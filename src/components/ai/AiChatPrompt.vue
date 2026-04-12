@@ -20,12 +20,12 @@
     </div>
 
     <!-- 입력창 -->
-    <div class="flex gap-2 items-end">
-      <textarea
+    <div class="flex gap-2 items-center">
+      <input
         v-model="inputText"
+        type="text"
         :placeholder="placeholder || '예: 벚꽃 볼 수 있는 30분짜리 코스 추천해줘'"
-        rows="2"
-        class="flex-1 resize-none rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-nadle-green transition-colors"
+        class="flex-1 rounded-2xl border border-gray-200 px-4 h-12 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-nadle-green transition-colors"
         @keydown.enter.prevent="onSubmit"
       />
       <button
