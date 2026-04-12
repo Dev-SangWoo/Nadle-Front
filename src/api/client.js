@@ -3,11 +3,13 @@
  * 베이스 URL: .env 의 VITE_API_BASE_URL (미설정 시 Render 기본값)
  */
 
-const DEFAULT_BASE = 'https://nadle-backend.onrender.com'
+const DEFAULT_BASE = "https://nadle-backend-production.up.railway.app";
 
 function normalizeBase(url) {
-  const trimmed = String(url ?? '').trim().replace(/\/+$/, '')
-  return trimmed || DEFAULT_BASE
+  const trimmed = String(url ?? "")
+    .trim()
+    .replace(/\/+$/, "");
+  return trimmed || DEFAULT_BASE;
 }
 
 /**
@@ -16,33 +18,33 @@ function normalizeBase(url) {
  */
 function resolveApiBase() {
   if (import.meta.env.DEV) {
-    return ''
+    return "";
   }
-  return normalizeBase(import.meta.env.VITE_API_BASE_URL)
+  return normalizeBase(import.meta.env.VITE_API_BASE_URL);
 }
 
 /** 근거 URL. DEV 에서는 '' (상대 경로). */
-export const API_BASE_URL = resolveApiBase()
+export const API_BASE_URL = resolveApiBase();
 
 /**
  * @param {string} path '/api/v1/foo' 또는 'api/v1/foo'
  * @returns {string} 절대 URL 또는 동일 출처 상대 경로
  */
 export function apiUrl(path) {
-  const p = path.startsWith('/') ? path : `/${path}`
-  const base = API_BASE_URL
-  if (!base) return p
-  return `${base}${p}`
+  const p = path.startsWith("/") ? path : `/${path}`;
+  const base = API_BASE_URL;
+  if (!base) return p;
+  return `${base}${p}`;
 }
 
 function shouldStringifyJsonBody(body) {
   return (
     body != null &&
-    typeof body === 'object' &&
+    typeof body === "object" &&
     !(body instanceof FormData) &&
     !(body instanceof Blob) &&
     !(body instanceof ArrayBuffer)
-  )
+  );
 }
 
 /**
@@ -54,25 +56,25 @@ function shouldStringifyJsonBody(body) {
  * @returns {Promise<Response>}
  */
 export async function apiFetch(pathOrUrl, init = {}) {
-  const url = /^https?:\/\//i.test(pathOrUrl) ? pathOrUrl : apiUrl(pathOrUrl)
-  const { body, headers: initHeaders, ...rest } = init
-  const headers = new Headers(initHeaders || {})
+  const url = /^https?:\/\//i.test(pathOrUrl) ? pathOrUrl : apiUrl(pathOrUrl);
+  const { body, headers: initHeaders, ...rest } = init;
+  const headers = new Headers(initHeaders || {});
 
-  if (!headers.has('Accept')) {
-    headers.set('Accept', 'application/json')
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
   }
 
-  let finalBody = body
+  let finalBody = body;
   if (shouldStringifyJsonBody(body)) {
-    if (!headers.has('Content-Type')) {
-      headers.set('Content-Type', 'application/json')
+    if (!headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
     }
-    finalBody = JSON.stringify(body)
+    finalBody = JSON.stringify(body);
   }
 
   return fetch(url, {
     ...rest,
     headers,
-    body: finalBody
-  })
+    body: finalBody,
+  });
 }

@@ -1,20 +1,19 @@
-import { defineConfig, loadEnv } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import { fileURLToPath, URL } from 'node:url'
+import { defineConfig, loadEnv } from "vite";
+import vue from "@vitejs/plugin-vue";
+import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
-  const apiTarget = String(env.VITE_API_BASE_URL || 'https://nadle-backend.onrender.com').replace(
-    /\/+$/,
-    ''
-  )
+  const env = loadEnv(mode, process.cwd(), "");
+  const apiTarget = String(
+    env.VITE_API_BASE_URL || "https://nadle-backend-production.up.railway.app",
+  ).replace(/\/+$/, "");
 
   return {
     plugins: [vue()],
     resolve: {
       alias: {
-        '@': fileURLToPath(new URL('./src', import.meta.url))
-      }
+        "@": fileURLToPath(new URL("./src", import.meta.url)),
+      },
     },
     /**
      * 로컬(http://localhost:5173)에서 Render 등 외부 API를 직접 호출하면 CORS에 막힘.
@@ -22,7 +21,7 @@ export default defineConfig(({ mode }) => {
      */
     server: {
       proxy: {
-        '/api': {
+        "/api": {
           target: apiTarget,
           changeOrigin: true,
           secure: true,
@@ -30,12 +29,12 @@ export default defineConfig(({ mode }) => {
           timeout: 180_000,
           proxyTimeout: 180_000,
           configure(proxy) {
-            proxy.on('error', (err) => {
-              console.error('[vite proxy /api]', err?.message || err)
-            })
-          }
-        }
-      }
-    }
-  }
-})
+            proxy.on("error", (err) => {
+              console.error("[vite proxy /api]", err?.message || err);
+            });
+          },
+        },
+      },
+    },
+  };
+});

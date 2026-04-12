@@ -319,15 +319,26 @@ async function loadNearbyPlaces() {
 
 onMounted(() => {
   loadNearbyPlaces()
+  // 결과 화면 진입 즉시 로컬에 저장 (버튼 미클릭 시에도 보존)
+  if (rideStore.destinations.length > 0) {
+    historyStore.addRecord({
+      id: Date.now(),
+      route: rideStore.destinations.map(d => d.spotName).join(' → '),
+      destinations: rideStore.destinations.map(d => ({
+        spotName: d.spotName,
+        description: d.description ?? '',
+        lat: d.lat,
+        lng: d.lng,
+      })),
+      stamps: [...rideStore.stamps],
+      choseKindStation: rideStore.choseKindStation,
+      duration: summary.time,
+      distance: summary.distance,
+    })
+  }
 })
 
 function onGoHome() {
-  historyStore.addRecord({
-    route: rideStore.destinations.map(d => d.spotName).join(' → '),
-    stamps: [...rideStore.stamps],
-    duration: summary.time,
-    distance: summary.distance
-  })
   rideStore.resetRide()
   router.push('/')
 }

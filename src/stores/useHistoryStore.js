@@ -2,19 +2,18 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useHistoryStore = defineStore('history', () => {
-  // 전체 여행 기록
   const records = ref([])
-
-  // 전체 스탬프 수
   const totalStamps = ref([])
 
   function addRecord(record) {
+    if (record.id && records.value.some(r => r.id === record.id)) return
+
     records.value.unshift({
-      id: Date.now(),
+      id: record.id ?? Date.now(),
       date: new Date().toLocaleDateString('ko-KR'),
       ...record
     })
-    totalStamps.value.push(...record.stamps)
+    totalStamps.value.push(...(record.stamps ?? []))
   }
 
   return {
