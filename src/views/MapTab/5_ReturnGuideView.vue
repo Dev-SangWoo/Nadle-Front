@@ -114,7 +114,11 @@
       </div>
 
       <div class="flex-shrink-0 px-5 pt-2 pb-[max(1.25rem,env(safe-area-inset-bottom))] border-t border-gray-100 bg-white">
-        <BaseButton class="w-full" @click="onReturnComplete">
+        <BaseButton
+          class="w-full"
+          :disabled="!selectedReturn"
+          @click="onReturnComplete"
+        >
           반납 완료 ✅
         </BaseButton>
       </div>

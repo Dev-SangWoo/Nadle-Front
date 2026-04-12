@@ -41,17 +41,23 @@
             @click="onStationSelect(recommendedKindStation)"
             class="w-full flex items-center gap-3.5 p-3.5 rounded-2xl border-2 transition-all text-left mb-4 flex-shrink-0 active:scale-[0.99]"
             :class="selectedStation?.id === recommendedKindStation.id
-              ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200/60'
+              ? 'border-nadle-green bg-nadle-light ring-2 ring-nadle-green/30'
               : 'border-orange-200 bg-gradient-to-br from-orange-50/90 to-amber-50/50'"
           >
             <span
-              class="flex-shrink-0 w-11 h-11 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 shadow-md ring-2 ring-white flex items-center justify-center text-xl"
+              class="flex-shrink-0 w-11 h-11 rounded-full shadow-md flex items-center justify-center text-xl"
+              :class="selectedStation?.id === recommendedKindStation.id
+                ? 'bg-gradient-to-br from-nadle-green to-green-600 ring-2 ring-green-200'
+                : 'bg-gradient-to-br from-orange-500 to-orange-600 ring-2 ring-white'"
               aria-hidden="true"
             >
               🚲
             </span>
             <div class="flex-1 min-w-0">
-              <p class="text-xs font-bold text-orange-700 mb-0.5">착한 대여소</p>
+              <p
+                class="text-xs font-bold mb-0.5"
+                :class="selectedStation?.id === recommendedKindStation.id ? 'text-nadle-green' : 'text-orange-700'"
+              >착한 대여소</p>
               <p class="text-[15px] font-semibold text-gray-900 leading-tight">
                 {{ recommendedKindStation.name }}
               </p>
@@ -64,7 +70,7 @@
             </div>
             <span
               v-if="selectedStation?.id === recommendedKindStation.id"
-              class="text-orange-600 text-xl font-bold shrink-0"
+              class="text-nadle-green text-xl font-bold shrink-0"
             >✓</span>
           </button>
         </template>
@@ -199,6 +205,10 @@ function onMarkerClick(marker) {
 
 function onConfirm() {
   rideStore.setStation(selectedStation.value)
+  const kind =
+    recommendedKindStation.value != null &&
+    selectedStation.value?.id === recommendedKindStation.value.id
+  rideStore.setKindStationAtRent(kind)
   router.push('/map/riding')
 }
 </script>
