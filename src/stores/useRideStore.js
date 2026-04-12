@@ -25,7 +25,11 @@ export const useRideStore = defineStore('ride', () => {
 
   const stamps = ref([])
 
+  /** 반납 시 착한 대여소 선택 여부 */
   const choseKindStation = ref(false)
+
+  /** 대여(출발) 시 착한 대여소 선택 여부 — 결과 보너스 스탬프 표시용, 미션 스탬프 개수에는 미포함 */
+  const choseKindStationAtRent = ref(false)
 
   const isRiding = ref(false)
 
@@ -189,6 +193,10 @@ export const useRideStore = defineStore('ride', () => {
     choseKindStation.value = value
   }
 
+  function setKindStationAtRent(value) {
+    choseKindStationAtRent.value = Boolean(value)
+  }
+
   function finishRide() {
     isRiding.value = false
   }
@@ -203,6 +211,7 @@ export const useRideStore = defineStore('ride', () => {
     currentDestIndex.value = 0
     stamps.value = []
     choseKindStation.value = false
+    choseKindStationAtRent.value = false
     isRiding.value = false
   }
 
@@ -216,6 +225,7 @@ export const useRideStore = defineStore('ride', () => {
     currentDestIndex,
     stamps,
     choseKindStation,
+    choseKindStationAtRent,
     isRiding,
     setPrompt,
     setStation,
@@ -224,6 +234,7 @@ export const useRideStore = defineStore('ride', () => {
     startRide,
     collectStamp,
     setKindStation,
+    setKindStationAtRent,
     finishRide,
     resetRide
   }
