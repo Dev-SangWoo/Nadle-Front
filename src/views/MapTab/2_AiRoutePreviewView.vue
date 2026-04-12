@@ -2,7 +2,11 @@
   <div class="flex flex-col h-full">
     <!-- 지도 미리보기 (상단 절반) -->
     <div class="flex-1 min-h-0 relative">
-      <MapPreviewSection :destinations="rideStore.destinations" />
+      <MapPreviewSection
+        :destinations="rideStore.destinations"
+        :selected-spot-id="detailSpotId"
+        @marker-click="onMapMarkerClick"
+      />
     </div>
 
     <!-- 하단 패널: AI 추천 결과 + 챗봇 재조정 -->
@@ -141,6 +145,13 @@ watch(
 function openDetail(dest) {
   if (dest?.spotId != null) {
     detailSpotId.value = String(dest.spotId)
+  }
+}
+
+function onMapMarkerClick(marker) {
+  const sid = marker?.spotId ?? null
+  if (sid != null && String(sid).trim() !== '') {
+    detailSpotId.value = String(sid)
   }
 }
 

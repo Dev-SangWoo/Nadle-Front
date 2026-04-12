@@ -9,7 +9,11 @@
         <p class="text-sm text-gray-400 mt-1">미션을 완료하면 스탬프를 획득해요!</p>
       </div>
 
-      <MissionOxQuiz v-if="resolvedType === 'quiz'" @complete="$emit('complete')" />
+      <MissionOxQuiz
+        v-if="resolvedType === 'quiz'"
+        :question-data="quizPayload"
+        @complete="$emit('complete')"
+      />
       <MissionCamera v-else-if="resolvedType === 'camera'" @complete="$emit('complete')" />
       <MissionRest v-else-if="resolvedType === 'rest'" @complete="$emit('complete')" />
     </div>
@@ -23,7 +27,9 @@ import MissionCamera from './MissionCamera.vue'
 import MissionRest from './MissionRest.vue'
 
 const props = defineProps({
-  type: { type: String, default: null }
+  type: { type: String, default: null },
+  /** 퀴즈 미션일 때 API에서 받은 문항 (없으면 OX 컴포넌트 내부 예시) */
+  quizPayload: { type: Object, default: null }
 })
 
 defineEmits(['complete'])

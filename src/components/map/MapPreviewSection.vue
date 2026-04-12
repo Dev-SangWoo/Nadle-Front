@@ -1,7 +1,12 @@
 <template>
   <div class="relative w-full h-full">
     <!-- 지도 도화지 -->
-    <KakaoMap ref="mapRef" :markers="mapMarkers" />
+    <KakaoMap
+      ref="mapRef"
+      :markers="mapMarkers"
+      :selected-id="selectedSpotId"
+      @marker-click="onMarkerClick"
+    />
 
     <!-- 카카오맵 앱 딥링크 버튼 -->
     <button
@@ -35,8 +40,12 @@ const locationStore = useLocationStore()
 const props = defineProps({
   destinations: { type: Array, default: () => [] },
   currentIndex: { type: Number, default: 0 },
-  showRoute: { type: Boolean, default: false }
+  showRoute: { type: Boolean, default: false },
+  /** 마커 하이라이트 + 상세 시트와 동기화용 (spotId 문자열) */
+  selectedSpotId: { type: [String, Number], default: null }
 })
+
+const emit = defineEmits(['marker-click'])
 
 const currentDestination = computed(
   () => props.destinations[props.currentIndex] ?? null
@@ -45,12 +54,21 @@ const currentDestination = computed(
 const mapMarkers = computed(() =>
   props.destinations
     .filter(d => d.lat && d.lng)
-    .map((d, i) => ({
-      lat: d.lat,
-      lng: d.lng,
-      label: String(i + 1)
-    }))
+    .map((d, i) => {
+      const spotId = d.spotId != null ? String(d.spotId) : null
+      return {
+        id: spotId ?? `dest-${i}`,
+        spotId,
+        lat: d.lat,
+        lng: d.lng,
+        label: String(i + 1)
+      }
+    })
 )
+
+function onMarkerClick(marker) {
+  emit('marker-click', marker)
+}
 
 function openKakaoMap() {
   if (!props.destinations.length) return
