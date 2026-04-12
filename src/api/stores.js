@@ -1,30 +1,16 @@
 // 개발 환경: Vite 프록시(/api)로 CORS 우회 / 프로덕션: 직접 호출
 const BASE_URL = import.meta.env.DEV ? '' : import.meta.env.VITE_API_BASE_URL
 
-/**
- * indsMclsCdNm(중분류명) → { category, emoji } 매핑
- */
-const CATEGORY_MAP = {
-  '음식점':   { category: 'restaurant', emoji: '🍽️' },
-  '카페':     { category: 'cafe',       emoji: '☕' },
-  '제과점':   { category: 'bakery',     emoji: '🥐' },
-  '베이커리':  { category: 'bakery',     emoji: '🥐' },
-  '주점':     { category: 'bar',        emoji: '🍺' },
-  '바':       { category: 'bar',        emoji: '🍺' },
-  '쇼핑':     { category: 'shopping',   emoji: '🛍️' },
-  '편의점':   { category: 'shopping',   emoji: '🏪' },
-  '슈퍼마켓': { category: 'shopping',   emoji: '🛒' },
-}
+const RESTAURANT_MID = ['한식', '중식', '일식', '서양식', '동남아시아']
 
 function resolveCategoryMeta(indsMclsCdNm, indsSclsCdNm) {
   const mid = indsMclsCdNm ?? ''
   const sub = indsSclsCdNm ?? ''
-  for (const key of Object.keys(CATEGORY_MAP)) {
-    if (mid.includes(key) || sub.includes(key)) {
-      return CATEGORY_MAP[key]
-    }
-  }
-  return { category: 'attraction', emoji: '🏪' }
+
+  if (sub === '카페') return { category: 'cafe', emoji: '☕' }
+  if (RESTAURANT_MID.some(k => mid === k)) return { category: 'restaurant', emoji: '🍽️' }
+  if (mid === '주점') return { category: 'bar', emoji: '🍺' }
+  return { category: 'etc', emoji: '🏪' }
 }
 
 /**
@@ -63,7 +49,6 @@ export async function fetchNearbyStores(lat, lng, radius = 1000) {
   }
 
   return (json.result ?? [])
-    .filter((item) => item.indsSclsCdNm === '카페')
     .map((item) => {
       const { category, emoji } = resolveCategoryMeta(item.indsMclsCdNm, item.indsSclsCdNm)
       return {
@@ -74,6 +59,7 @@ export async function fetchNearbyStores(lat, lng, radius = 1000) {
         address:     item.rdnWhlAddr,
         lat:         item.lat,
         lng:         item.lon,
+        midCategory: item.indsMclsCdNm ?? '',
         subCategory: item.indsSclsCdNm ?? '',
       }
     })
