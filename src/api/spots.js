@@ -241,3 +241,73 @@ export async function fetchSpotDetail(spotId) {
   }
   return mapped
 }
+
+function quizPath(spotId) {
+  const id = encodeURIComponent(String(spotId).trim())
+  return `/api/v1/spots/${id}/quiz`
+}
+
+/**
+ * 관광지 O/X 퀴즈 GET /api/v1/spots/{spotId}/quiz
+ * @param {string} spotId — contentId 등 관광지 고유 ID
+ * @returns {Promise<{ text: string, answer: boolean, explanation: string }>}
+ */
+export async function fetchSpotQuiz(spotId) {
+  if (spotId == null || String(spotId).trim() === '') {
+    throw new Error('spotId가 필요합니다.')
+  }
+
+  const res = await apiFetch(quizPath(spotId))
+  if (!res.ok) {
+    let detail = res.statusText
+    try {
+      const errBody = await res.text()
+      if (errBody) detail = errBody.slice(0, 200)
+    } catch {
+      /* ignore */
+    }
+    throw new Error(detail || `HTTP ${res.status}`)
+  }
+
+  const json = await res.json()
+  const ok =
+    json &&
+    typeof json === 'object' &&
+    (json.isSuccess === true ||
+      json.success === true ||
+      json.code === 200)
+
+  if (json && typeof json === 'object' && json.success === false) {
+    throw new Error(String(json.message || '퀴즈 조회에 실패했습니다.'))
+  }
+  if (json && typeof json === 'object' && json.isSuccess === false) {
+    throw new Error(String(json.message || '퀴즈 조회에 실패했습니다.'))
+  }
+  if (!ok) {
+    throw new Error(
+      String(json?.message || '퀴즈를 불러오지 못했습니다.')
+    )
+  }
+
+  const r = json?.result
+  if (!r || typeof r !== 'object') {
+    throw new Error('퀴즈 데이터가 없습니다.')
+  }
+
+  const text = String(r.question ?? '').trim()
+  if (!text) {
+    throw new Error('퀴즈 문항이 비어 있습니다.')
+  }
+
+  const answer =
+    r.answer === true ||
+    r.answer === 'true' ||
+    r.answer === 1 ||
+    r.answer === 'O' ||
+    r.answer === 'o'
+
+  const explanation =
+    String(r.explanation ?? '').trim() || '설명이 없습니다.'
+
+  return { text, answer, explanation }
+}

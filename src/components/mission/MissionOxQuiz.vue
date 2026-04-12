@@ -3,7 +3,7 @@
     <!-- 문제 -->
     <div class="w-full bg-gray-50 rounded-2xl p-4 text-center">
       <p class="text-sm text-gray-500 mb-2">관광지 퀴즈</p>
-      <p class="text-base font-semibold text-gray-800 leading-relaxed">{{ question.text }}</p>
+      <p class="text-base font-semibold text-gray-800 leading-relaxed">{{ activeQuestion.text }}</p>
     </div>
 
     <!-- 정답/오답 피드백 -->
@@ -12,7 +12,7 @@
       <p class="font-semibold" :class="isCorrect ? 'text-nadle-green' : 'text-red-500'">
         {{ isCorrect ? '정답이에요!' : '아쉽지만 틀렸어요' }}
       </p>
-      <p class="text-sm text-gray-500 mt-1">{{ question.explanation }}</p>
+      <p class="text-sm text-gray-500 mt-1">{{ activeQuestion.explanation }}</p>
     </div>
 
     <!-- O / X 버튼 -->
@@ -43,22 +43,49 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const emit = defineEmits(['complete'])
 
-// TODO: AI 또는 API에서 관광지 퀴즈 가져오기
-const question = ref({
+const props = defineProps({
+  /** API fetchSpotQuiz 결과 { text, answer, explanation } — 없으면 예시 문항 */
+  questionData: {
+    type: Object,
+    default: null
+  }
+})
+
+const FALLBACK = {
   text: '경복궁은 조선시대 가장 먼저 세워진 궁궐이다.',
   answer: true,
   explanation: '경복궁은 1395년 태조 이성계가 조선 건국 후 처음으로 세운 법궁입니다.'
+}
+
+const activeQuestion = computed(() => {
+  const q = props.questionData
+  if (q && typeof q === 'object' && String(q.text ?? '').trim()) {
+    return {
+      text: String(q.text).trim(),
+      answer: Boolean(q.answer),
+      explanation: String(q.explanation ?? '').trim() || '설명이 없습니다.'
+    }
+  }
+  return FALLBACK
 })
 
 const answered = ref(false)
 const isCorrect = ref(false)
 
+watch(
+  () => props.questionData,
+  () => {
+    answered.value = false
+    isCorrect.value = false
+  }
+)
+
 function selectAnswer(choice) {
   answered.value = true
-  isCorrect.value = choice === question.value.answer
+  isCorrect.value = choice === activeQuestion.value.answer
 }
 </script>

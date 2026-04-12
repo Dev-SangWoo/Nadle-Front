@@ -33,8 +33,8 @@
       <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pt-1 pb-4">
         <h2 class="text-lg font-bold text-gray-900 mb-1">근처 반납 대여소</h2>
         <p class="text-[13px] text-gray-500 leading-relaxed mb-5">
-          지도의
-          <span class="font-semibold text-orange-600">주황 마커</span>는 여유가 많은 곳이에요.
+          거리(m) 기준 가까운 4곳 중, 거치된 자전거가 가장 적은 곳이
+          <span class="font-semibold text-orange-600">주황 마커(착한 대여소)</span>예요.
           아래에서 골라도 됩니다.
         </p>
 
@@ -128,9 +128,7 @@ import { useRouter } from 'vue-router'
 import { useRideStore } from '@/stores/useRideStore'
 import KakaoMap from '@/components/map/KakaoMap.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-
-/** 대여 가능 자전거가 이 값 이하면 '착한 대여소'(반납 여유 많음)로 분류 */
-const KIND_STATION_MAX_BIKES = 3
+import { nearestStationsByDistance } from '@/utils/stationSelection'
 
 const router = useRouter()
 const rideStore = useRideStore()
@@ -146,10 +144,20 @@ const anchor = computed(() => {
   return { lat: last.lat, lng: last.lng }
 })
 
-// TODO: 실제 공공 자전거 API 연동 — availableBikes(거치 자전거 수) 기준으로 kindStation 판별
+// TODO: GET 근처 반납 대여소 API — distance(m) 포함, 순서 무관. 프론트에서 가까운 4곳만 사용.
+// 그중 거치 대수(availableBikes) 최소 = 착한 대여소. 동점이면 distance 짧은 곳.
 const returnStations = computed(() => {
   const { lat: baseLat, lng: baseLng } = anchor.value
   const raw = [
+    {
+      id: 3,
+      name: '청계천 광통교',
+      empty: 10,
+      distance: 320,
+      availableBikes: 2,
+      dLat: 0.00045,
+      dLng: -0.00065
+    },
     {
       id: 1,
       name: '인사동 골목 앞',
@@ -158,6 +166,15 @@ const returnStations = computed(() => {
       availableBikes: 1,
       dLat: 0.0009,
       dLng: 0.00035
+    },
+    {
+      id: 5,
+      name: '남산 케이블카 입구',
+      empty: 20,
+      distance: 920,
+      availableBikes: 4,
+      dLat: -0.002,
+      dLng: 0.0015
     },
     {
       id: 2,
@@ -169,15 +186,6 @@ const returnStations = computed(() => {
       dLng: 0.0011
     },
     {
-      id: 3,
-      name: '청계천 광통교',
-      empty: 10,
-      distance: 320,
-      availableBikes: 2,
-      dLat: 0.00045,
-      dLng: -0.00065
-    },
-    {
       id: 4,
       name: '광화문 광장 북측',
       empty: 8,
@@ -185,6 +193,15 @@ const returnStations = computed(() => {
       availableBikes: 0,
       dLat: 0.0012,
       dLng: 0.0002
+    },
+    {
+      id: 6,
+      name: '시청역 부근',
+      empty: 6,
+      distance: 1050,
+      availableBikes: 8,
+      dLat: -0.0015,
+      dLng: -0.0008
     }
   ]
 
@@ -202,19 +219,20 @@ const returnStations = computed(() => {
     }
   })
 
-  const eligible = mapped.filter((s) => s.availableBikes <= KIND_STATION_MAX_BIKES)
+  const nearest = nearestStationsByDistance(mapped)
+
+  const minBikes = Math.min(...nearest.map((s) => Number(s.availableBikes) || 0))
+  const tier = nearest.filter((s) => (Number(s.availableBikes) || 0) === minBikes)
   const picked =
-    eligible.length === 0
+    tier.length === 0
       ? null
-      : eligible.reduce((best, s) => {
+      : tier.reduce((best, s) => {
           if (!best) return s
-          if (s.availableBikes < best.availableBikes) return s
-          if (s.availableBikes > best.availableBikes) return best
           return s.distance < best.distance ? s : best
         })
 
   const kindId = picked?.id ?? null
-  return mapped.map((s) => ({
+  return nearest.map((s) => ({
     ...s,
     kindStation: s.id === kindId
   }))

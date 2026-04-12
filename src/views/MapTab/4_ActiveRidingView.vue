@@ -5,7 +5,9 @@
       <MapPreviewSection
         :destinations="rideStore.destinations"
         :current-index="rideStore.currentDestIndex"
+        :selected-spot-id="detailSpotId"
         show-route
+        @marker-click="onMapMarkerClick"
       />
     </div>
 
@@ -30,14 +32,25 @@
       />
 
       <!-- 도착 완료 버튼 -->
-      <ArrivalConfirmButton @arrived="onArrived" />
+      <ArrivalConfirmButton
+        :disabled="missionPrepareLoading"
+        :loading="missionPrepareLoading"
+        @arrived="onArrived"
+      />
     </div>
 
     <!-- 미션 모달 -->
     <MissionModal
       v-if="showMission"
       :type="currentMissionType"
+      :quiz-payload="quizPayload"
       @complete="onMissionComplete"
+    />
+
+    <SpotDetailSheet
+      v-if="detailSpotId"
+      :spot-id="detailSpotId"
+      @close="detailSpotId = null"
     />
   </div>
 </template>
@@ -46,7 +59,9 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRideStore } from '@/stores/useRideStore'
+import { fetchSpotQuiz } from '@/api/spots'
 import MapPreviewSection from '@/components/map/MapPreviewSection.vue'
+import SpotDetailSheet from '@/components/map/SpotDetailSheet.vue'
 import CurrentMissionCard from '@/components/mission/CurrentMissionCard.vue'
 import ArrivalConfirmButton from '@/components/mission/ArrivalConfirmButton.vue'
 import MissionModal from '@/components/mission/MissionModal.vue'
@@ -55,6 +70,18 @@ const router = useRouter()
 const rideStore = useRideStore()
 
 const showMission = ref(false)
+const missionPrepareLoading = ref(false)
+/** 퀴즈 미션 시 API 문항 (실패 시 null 이고 미션 타입이 카메라/휴식으로 바뀜) */
+const quizPayload = ref(null)
+/** 지도 마커 탭 시 상세 시트 (spotId) */
+const detailSpotId = ref(null)
+
+function onMapMarkerClick(marker) {
+  const sid = marker?.spotId ?? null
+  if (sid != null && String(sid).trim() !== '') {
+    detailSpotId.value = String(sid)
+  }
+}
 
 function shuffled(arr) {
   const a = [...arr]
@@ -72,12 +99,42 @@ const currentDestination = computed(
   () => rideStore.destinations[rideStore.currentDestIndex] ?? null
 )
 
-function onArrived() {
+function pickNonQuizMission() {
+  const opts = ['camera', 'rest']
+  return opts[Math.floor(Math.random() * opts.length)]
+}
+
+async function onArrived() {
+  quizPayload.value = null
+  const dest = currentDestination.value
+  const sid = dest?.spotId != null ? String(dest.spotId).trim() : ''
+
+  if (currentMissionType.value === 'quiz') {
+    if (!sid) {
+      currentMissionType.value = pickNonQuizMission()
+      showMission.value = true
+      return
+    }
+    missionPrepareLoading.value = true
+    try {
+      quizPayload.value = await fetchSpotQuiz(sid)
+      showMission.value = true
+    } catch {
+      quizPayload.value = null
+      currentMissionType.value = pickNonQuizMission()
+      showMission.value = true
+    } finally {
+      missionPrepareLoading.value = false
+    }
+    return
+  }
+
   showMission.value = true
 }
 
 function onMissionComplete() {
   showMission.value = false
+  quizPayload.value = null
   rideStore.collectStamp(currentDestination.value?.spotName)
 
   const isLast = rideStore.currentDestIndex >= rideStore.destinations.length
