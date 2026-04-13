@@ -2,15 +2,16 @@
   <div class="flex flex-col h-full min-h-0 bg-gray-100">
     <!-- 지도: 고정 비율로 두고 아래 목록에 충분한 높이 확보 -->
     <div
-      class="relative flex-[0_0_34%] min-h-[156px] max-h-[38vh] shrink-0"
+      class="relative isolate flex-[0_0_34%] min-h-[156px] max-h-[38vh] shrink-0"
     >
       <KakaoMap
         ref="mapRef"
+        class="relative z-0"
         :markers="returnMarkers"
         :selected-id="selectedReturn?.id ?? null"
         @marker-click="onMarkerClick"
       />
-      <div class="absolute top-3 left-3 right-3 pointer-events-none">
+      <div class="absolute top-3 left-3 right-3 z-10 pointer-events-none">
         <div
           class="bg-white/95 backdrop-blur-sm rounded-2xl shadow-md px-3.5 py-2.5 flex items-center gap-2 pointer-events-auto"
         >
@@ -38,8 +39,25 @@
           아래에서 골라도 됩니다.
         </p>
 
+        <p v-if="loadStatus === 'loading'" class="text-sm text-gray-500 py-6 text-center">
+          주변 반납 대여소를 불러오는 중…
+        </p>
+        <p v-else-if="loadStatus === 'error'" class="text-sm text-red-600 py-4 text-center leading-relaxed">
+          대여소를 불러오지 못했어요.
+          <button
+            type="button"
+            class="mt-2 block mx-auto text-nadle-green font-semibold underline"
+            @click="loadReturnStations"
+          >
+            다시 시도
+          </button>
+        </p>
+        <p v-else-if="loadStatus === 'empty'" class="text-sm text-gray-500 py-6 text-center">
+          주변에 표시할 대여소가 없어요. 잠시 후 다시 시도해 주세요.
+        </p>
+
         <!-- 착한 대여소 1곳 -->
-        <template v-if="recommendedKindStation">
+        <template v-if="loadStatus === 'ok' && recommendedKindStation">
           <p class="text-[11px] font-bold text-orange-600 tracking-wide mb-2">
             반납 추천
           </p>
@@ -75,7 +93,7 @@
         </template>
 
         <!-- 다른 대여소: 섹션을 명확히, 행 높이·간격 확대 -->
-        <template v-if="otherStations.length">
+        <template v-if="loadStatus === 'ok' && otherStations.length">
           <div class="flex items-end justify-between gap-2 mb-3">
             <div>
               <p class="text-sm font-bold text-gray-800">다른 근처 대여소</p>
@@ -111,6 +129,15 @@
             </li>
           </ul>
         </template>
+
+        <button
+          v-if="loadStatus === 'ok' && selectedReturn"
+          type="button"
+          class="mt-4 text-sm font-semibold text-nadle-green underline text-left"
+          @click="detailSheetOpen = true"
+        >
+          선택한 대여소 상세 정보
+        </button>
       </div>
 
       <div class="flex-shrink-0 px-5 pt-2 pb-[max(1.25rem,env(safe-area-inset-bottom))] border-t border-gray-100 bg-white">
@@ -124,13 +151,21 @@
       </div>
     </div>
   </div>
+
+  <StationDetailSheet
+    :open="detailSheetOpen"
+    :station-id="selectedReturn?.id != null ? String(selectedReturn.id) : ''"
+    @close="detailSheetOpen = false"
+  />
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRideStore } from '@/stores/useRideStore'
+import { fetchNearbyStations } from '@/api/stations'
 import KakaoMap from '@/components/map/KakaoMap.vue'
+import StationDetailSheet from '@/components/map/StationDetailSheet.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { nearestStationsByDistance } from '@/utils/stationSelection'
 
@@ -138,6 +173,7 @@ const router = useRouter()
 const rideStore = useRideStore()
 
 const selectedReturn = ref(null)
+const detailSheetOpen = ref(false)
 
 const anchor = computed(() => {
   const list = rideStore.destinations
@@ -148,80 +184,71 @@ const anchor = computed(() => {
   return { lat: last.lat, lng: last.lng }
 })
 
-// TODO: GET 근처 반납 대여소 API — distance(m) 포함, 순서 무관. 프론트에서 가까운 4곳만 사용.
-// 그중 거치 대수(availableBikes) 최소 = 착한 대여소. 동점이면 distance 짧은 곳.
-const returnStations = computed(() => {
-  const { lat: baseLat, lng: baseLng } = anchor.value
-  const raw = [
-    {
-      id: 3,
-      name: '청계천 광통교',
-      empty: 10,
-      distance: 320,
-      availableBikes: 2,
-      dLat: 0.00045,
-      dLng: -0.00065
-    },
-    {
-      id: 1,
-      name: '인사동 골목 앞',
-      empty: 14,
-      distance: 85,
-      availableBikes: 1,
-      dLat: 0.0009,
-      dLng: 0.00035
-    },
-    {
-      id: 5,
-      name: '남산 케이블카 입구',
-      empty: 20,
-      distance: 920,
-      availableBikes: 4,
-      dLat: -0.002,
-      dLng: 0.0015
-    },
-    {
-      id: 2,
-      name: '종각역 2번 출구',
-      empty: 3,
-      distance: 210,
-      availableBikes: 11,
-      dLat: -0.00075,
-      dLng: 0.0011
-    },
-    {
-      id: 4,
-      name: '광화문 광장 북측',
-      empty: 8,
-      distance: 400,
-      availableBikes: 0,
-      dLat: 0.0012,
-      dLng: 0.0002
-    },
-    {
-      id: 6,
-      name: '시청역 부근',
-      empty: 6,
-      distance: 1050,
-      availableBikes: 8,
-      dLat: -0.0015,
-      dLng: -0.0008
-    }
-  ]
+const anchorKey = computed(
+  () =>
+    `${Number(anchor.value.lat).toFixed(6)},${Number(anchor.value.lng).toFixed(6)}`
+)
 
-  const mapped = raw.map((s) => {
-    const lat = baseLat + s.dLat
-    const lng = baseLng + s.dLng
-    return {
-      id: s.id,
-      name: s.name,
-      empty: s.empty,
-      distance: s.distance,
-      availableBikes: s.availableBikes,
-      lat,
-      lng
+/** GET /api/v1/stations/nearby 결과 (기준점 주변) */
+const stationsFromApi = ref([])
+
+/** idle | loading | ok | empty | error */
+const loadStatus = ref('idle')
+
+async function loadReturnStations() {
+  loadStatus.value = 'loading'
+  selectedReturn.value = null
+  detailSheetOpen.value = false
+
+  const la = Number(anchor.value.lat)
+  const ln = Number(anchor.value.lng)
+  if (!Number.isFinite(la) || !Number.isFinite(ln)) {
+    stationsFromApi.value = []
+    loadStatus.value = 'error'
+    return
+  }
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 15000)
+
+  try {
+    const list = await fetchNearbyStations({
+      lat: la,
+      lng: ln,
+      signal: controller.signal
+    })
+    stationsFromApi.value = list
+    loadStatus.value = list.length ? 'ok' : 'empty'
+  } catch (e) {
+    stationsFromApi.value = []
+    loadStatus.value = 'error'
+    if (import.meta.env.DEV) {
+      console.warn('[ReturnGuide] fetchNearbyStations:', e)
     }
-  })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+watch(anchorKey, () => {
+  loadReturnStations()
+}, { immediate: true })
+
+/**
+ * distance 기준 가까운 4곳만 사용.
+ * 그중 거치 대수(availableBikes) 최소 = 착한 대여소. 동점이면 distance 짧은 곳.
+ */
+const returnStations = computed(() => {
+  const mapped = stationsFromApi.value.map((s) => ({
+    id: s.id,
+    name: s.name,
+    empty: s.emptyCount,
+    distance: s.distance,
+    availableBikes: s.bikeCount,
+    lat: s.lat,
+    lng: s.lng
+  }))
+  if (!mapped.length) return []
 
   const nearest = nearestStationsByDistance(mapped)
 
