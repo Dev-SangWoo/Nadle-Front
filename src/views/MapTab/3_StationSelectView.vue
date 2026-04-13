@@ -1,14 +1,15 @@
 <template>
   <div class="flex flex-col h-full min-h-0">
     <!-- 지도 영역 (상단) -->
-    <div class="flex-1 min-h-0 relative">
+    <div class="flex-1 min-h-0 relative isolate">
       <KakaoMap
         ref="mapRef"
+        class="relative z-0"
         :markers="stationMarkers"
         :selected-id="selectedStation?.id ?? null"
         @marker-click="onMarkerClick"
       />
-      <div class="absolute top-3 left-3 right-3 pointer-events-none">
+      <div class="absolute top-3 left-3 right-3 z-10 pointer-events-none">
         <div
           class="bg-white/95 backdrop-blur-sm rounded-2xl shadow-md px-3.5 py-2.5 flex items-center gap-2 pointer-events-auto"
         >
@@ -31,8 +32,25 @@
       <p class="text-base font-bold text-gray-800 mb-3 flex-shrink-0">출발할 대여소를 선택하세요</p>
 
       <div class="flex flex-col gap-2 overflow-y-auto flex-1 min-h-0">
+        <p v-if="loadStatus === 'loading'" class="text-sm text-gray-500 py-6 text-center">
+          주변 대여소를 불러오는 중…
+        </p>
+        <p v-else-if="loadStatus === 'error'" class="text-sm text-red-600 py-4 text-center leading-relaxed">
+          대여소를 불러오지 못했어요.
+          <button
+            type="button"
+            class="mt-2 block mx-auto text-nadle-green font-semibold underline"
+            @click="loadStations"
+          >
+            다시 시도
+          </button>
+        </p>
+        <p v-else-if="loadStatus === 'empty'" class="text-sm text-gray-500 py-6 text-center">
+          주변에 표시할 대여소가 없어요. 잠시 후 다시 시도해 주세요.
+        </p>
+
         <!-- 착한 대여소: 대여(출발) — 잔여 대수 최다 추천 (반납 화면과 반대 기준) -->
-        <template v-if="recommendedKindStation">
+        <template v-if="loadStatus === 'ok' && recommendedKindStation">
           <p class="text-[11px] font-bold text-orange-600 tracking-wide mb-2 flex-shrink-0">
             출발 추천
           </p>
@@ -75,7 +93,7 @@
           </button>
         </template>
 
-        <template v-if="otherStations.length">
+        <template v-if="loadStatus === 'ok' && otherStations.length">
           <div class="flex items-end justify-between gap-2 mb-2 flex-shrink-0">
             <div>
               <p class="text-sm font-bold text-gray-800">다른 근처 대여소</p>
@@ -116,6 +134,15 @@
         </template>
       </div>
 
+      <button
+        v-if="loadStatus === 'ok' && selectedStation"
+        type="button"
+        class="mt-2 text-sm font-semibold text-nadle-green underline flex-shrink-0 text-left"
+        @click="detailSheetOpen = true"
+      >
+        선택한 대여소 상세 정보
+      </button>
+
       <BaseButton
         class="mt-4 flex-shrink-0"
         :disabled="!selectedStation"
@@ -125,30 +152,86 @@
       </BaseButton>
     </div>
   </div>
+
+  <StationDetailSheet
+    :open="detailSheetOpen"
+    :station-id="selectedStation?.id != null ? String(selectedStation.id) : ''"
+    @close="detailSheetOpen = false"
+  />
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRideStore } from '@/stores/useRideStore'
+import { useLocationStore } from '@/stores/useLocationStore'
+import { fetchNearbyStations } from '@/api/stations'
 import KakaoMap from '@/components/map/KakaoMap.vue'
+import StationDetailSheet from '@/components/map/StationDetailSheet.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { nearestStationsByDistance } from '@/utils/stationSelection'
 
+const FALLBACK_LAT = 37.5665
+const FALLBACK_LNG = 126.978
+
 const router = useRouter()
 const rideStore = useRideStore()
+const locationStore = useLocationStore()
 
 const selectedStation = ref(null)
+const detailSheetOpen = ref(false)
+/** GET /api/v1/stations/nearby 원본 — distance 포함, 프론트에서 가까운 4곳만 사용 */
+const stationsRaw = ref([])
 
-// TODO: GET 근처 대여소 API — distance(m) 포함, 순서 무관. 프론트에서 가까운 4곳만 사용.
-const stationsRaw = ref([
-  { id: 3, name: '세종문화회관 앞', available: 12, distance: 310, lat: 37.5724, lng: 126.9760 },
-  { id: 1, name: '광화문역 1번 출구', available: 8, distance: 120, lat: 37.5716, lng: 126.9768 },
-  { id: 5, name: '덕수궁 돌담길', available: 15, distance: 890, lat: 37.5658, lng: 126.9751 },
-  { id: 2, name: '경복궁 서측', available: 3, distance: 250, lat: 37.5779, lng: 126.9750 },
-  { id: 4, name: '광화문 광장 서편', available: 5, distance: 195, lat: 37.5728, lng: 126.9774 },
-  { id: 6, name: '서소문', available: 6, distance: 1120, lat: 37.5633, lng: 126.968 }
-])
+/** idle | loading | ok | empty | error */
+const loadStatus = ref('idle')
+
+async function loadStations() {
+  loadStatus.value = 'loading'
+  selectedStation.value = null
+  detailSheetOpen.value = false
+
+  if (locationStore.status === 'idle') {
+    locationStore.requestOnce()
+  }
+  const coords = await locationStore.waitForCoords(18000)
+  const lat = coords?.lat ?? locationStore.lat
+  const lng = coords?.lng ?? locationStore.lng
+  const useLat = Number.isFinite(Number(lat)) ? Number(lat) : FALLBACK_LAT
+  const useLng = Number.isFinite(Number(lng)) ? Number(lng) : FALLBACK_LNG
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 15000)
+
+  try {
+    const list = await fetchNearbyStations({
+      lat: useLat,
+      lng: useLng,
+      signal: controller.signal
+    })
+    stationsRaw.value = list.map((s) => ({
+      id: s.id,
+      name: s.name,
+      lat: s.lat,
+      lng: s.lng,
+      available: s.bikeCount,
+      distance: s.distance
+    }))
+    loadStatus.value = list.length ? 'ok' : 'empty'
+  } catch (e) {
+    stationsRaw.value = []
+    loadStatus.value = 'error'
+    if (import.meta.env.DEV) {
+      console.warn('[StationSelect] fetchNearbyStations:', e)
+    }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+onMounted(() => {
+  loadStations()
+})
 
 /**
  * 1) distance 오름차순 → 가까운 4곳
@@ -196,6 +279,7 @@ const stationMarkers = computed(() =>
 function onStationSelect(station) {
   selectedStation.value =
     selectedStation.value?.id === station.id ? null : station
+  if (!selectedStation.value) detailSheetOpen.value = false
 }
 
 function onMarkerClick(marker) {
